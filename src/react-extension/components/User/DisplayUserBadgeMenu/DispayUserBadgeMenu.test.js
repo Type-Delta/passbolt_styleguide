@@ -16,7 +16,16 @@ import { enableFetchMocks } from "jest-fetch-mock";
 import { defaultAppContext } from "../../../contexts/ExtAppContext.test.data";
 import { defaultProps } from "./DisplayUserBadgeMenu.test.data";
 import DisplayUserBadgeMenuPage from "./DisplayUserBadgeMenu.test.page";
-import { waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import {
+  ACCOUNT_WORK_ID,
+  PENDING_SIGN_IN,
+  accountSummaries,
+  defaultAccountsContext,
+} from "../../../../shared/context/Accounts/AccountsContext.test.data";
+import AddAccountDialog from "../AddAccountDialog/AddAccountDialog";
+import ManageAccountsDialog from "../ManageAccountsDialog/ManageAccountsDialog";
 
 describe("DisplayUserBadgeMenu", () => {
   let page; // The page to test against
@@ -71,5 +80,74 @@ describe("DisplayUserBadgeMenu", () => {
     jest.spyOn(props.mfaContext, "isMfaChoiceRequired").mockImplementation(() => true);
     await waitFor(() => {});
     expect(page.attentionRequired).toBeFalsy();
+  });
+
+  describe("Account switcher", () => {
+    const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Account menu" }));
+
+    it("is not offered where the extension does not provide saved accounts", () => {
+      page = new DisplayUserBadgeMenuPage(context, defaultProps());
+      openMenu();
+      expect(screen.queryByText("Add account")).toBeNull();
+    });
+
+    it("switches to another saved account in two clicks", async () => {
+      const accountsContext = defaultAccountsContext();
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext }));
+      openMenu();
+      expect(screen.getByRole("button", { name: "Account menu" })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("vault.home.example")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /alex.moreau@work.example/ }));
+      await waitFor(() => expect(accountsContext.switchAccount).toHaveBeenCalledWith(ACCOUNT_WORK_ID));
+      await waitFor(() => expect(page.userBadgeMenu).not.toHaveClass("open"));
+    });
+
+    it("opens the add account and manage accounts dialogs", () => {
+      const props = defaultProps({ accountsContext: defaultAccountsContext() });
+      page = new DisplayUserBadgeMenuPage(context, props);
+      openMenu();
+      fireEvent.click(screen.getByRole("button", { name: "Add account" }));
+      expect(props.dialogContext.open).toHaveBeenCalledWith(AddAccountDialog);
+      openMenu();
+      fireEvent.click(screen.getByRole("button", { name: "Manage accounts" }));
+      expect(props.dialogContext.open).toHaveBeenCalledWith(ManageAccountsDialog);
+    });
+
+    it("offers to add an account when only the current one is saved", () => {
+      const accountsContext = defaultAccountsContext({ accounts: accountSummaries().slice(0, 1) });
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext }));
+      openMenu();
+      expect(screen.queryByText("Switch to")).toBeNull();
+      expect(screen.getByRole("button", { name: "Add account" })).toBeInTheDocument();
+    });
+
+    it("lets the user retry when the saved accounts cannot be loaded", () => {
+      const accountsContext = defaultAccountsContext({ accounts: [], loadError: new Error("down") });
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext }));
+      openMenu();
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(accountsContext.refresh).toHaveBeenCalled();
+    });
+
+    it("shows a pending sign-in without hiding the two-click switch", async () => {
+      const accountsContext = defaultAccountsContext({ pending: PENDING_SIGN_IN });
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext }));
+      openMenu();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Waiting for multi-factor authentication for erin@home.example on vault.home.example.",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Cancel the sign-in of erin@home.example" }));
+      await waitFor(() => expect(accountsContext.cancelPending).toHaveBeenCalled());
+      fireEvent.click(screen.getByRole("button", { name: /alex.moreau@work.example/ }));
+      await waitFor(() => expect(accountsContext.switchAccount).toHaveBeenCalledWith(ACCOUNT_WORK_ID));
+    });
+
+    it("closes with Escape", () => {
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext: defaultAccountsContext() }));
+      openMenu();
+      fireEvent.keyDown(screen.getByRole("button", { name: "Add account" }), { key: "Escape" });
+      expect(screen.queryByRole("button", { name: "Add account" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Account menu" })).toHaveFocus();
+    });
   });
 });

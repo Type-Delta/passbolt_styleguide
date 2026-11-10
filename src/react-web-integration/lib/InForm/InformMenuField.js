@@ -17,6 +17,9 @@ import browser from "webextension-polyfill";
 import InFormFieldGeometryService from "./InFormFieldGeometryService";
 import ShadowDomQueryService from "../../services/ShadowDom/ShadowDomQueryService";
 
+// Focus changes, listened on capture, after which the menu checks whether it keeps the focus.
+const FOCUS_EVENTS = ["focusout", "focus", "pointerdown"];
+
 /**
  * An InFormMenuField is represented by a DOM element identified as a menu field
  */
@@ -53,6 +56,7 @@ class InFormMenuField {
     this.removeInFormMenu = this.removeInFormMenu.bind(this);
     this.removeIframe = this.removeIframe.bind(this);
     this.destroy = this.destroy.bind(this);
+    this.scheduleFocusCheck = this.scheduleFocusCheck.bind(this);
   }
 
   /** MENU INSERTION */
@@ -159,19 +163,41 @@ class InFormMenuField {
   /** MENU REMOVE */
 
   /**
-   * Whenever the menu must be removed
+   * The documents whose focus changes decide whether the menu stays: the field's and the host's, when the field
+   * is in another frame.
+   * @returns {Document[]}
+   */
+  get focusDocuments() {
+    const hostDocument = this.shadowRoot.host.ownerDocument;
+    return this.field.ownerDocument === hostDocument ? [hostDocument] : [this.field.ownerDocument, hostDocument];
+  }
+
+  /**
+   * Whenever the menu must be removed: check the focus once any focus change or pointer press settled.
+   * A blur of the field alone is not enough, focus moving into the menu's cross-origin iframe blurs it too.
    */
   handleRemoveEvent() {
-    this.field.addEventListener("blur", this.removeInFormMenu);
+    this.focusDocuments.forEach((focusDocument) =>
+      FOCUS_EVENTS.forEach((event) => focusDocument.addEventListener(event, this.scheduleFocusCheck, true)),
+    );
+  }
+
+  /**
+   * Check the focus on the next task, when the focus transition is settled.
+   */
+  scheduleFocusCheck() {
+    clearTimeout(this.focusCheck);
+    this.focusCheck = setTimeout(() => this.removeInFormMenu(), 0);
   }
 
   /**
    * Removes the in-form menu iframe from the field
    */
   removeInFormMenu() {
-    const isIframeMouseOver = this.isMenuMousingOver;
+    const iframe = this.shadowRoot.getElementById(this.iframeId);
+    const isIframeFocused = Boolean(iframe) && this.shadowRoot.activeElement === iframe;
     const isActiveElement = ShadowDomQueryService.deepActiveElement() === this.field;
-    if (!isIframeMouseOver && !isActiveElement) {
+    if (!isIframeFocused && !isActiveElement) {
       this.removeIframe();
     }
   }
@@ -207,7 +233,10 @@ class InFormMenuField {
    * Remove all listener and iframe to clean the page and avoid issue on extension update
    */
   destroy() {
-    this.field.removeEventListener("blur", this.removeInFormMenu);
+    this.focusDocuments.forEach((focusDocument) =>
+      FOCUS_EVENTS.forEach((event) => focusDocument.removeEventListener(event, this.scheduleFocusCheck, true)),
+    );
+    clearTimeout(this.focusCheck);
     this.scrollableFieldParent.removeEventListener("scroll", this.removeIframe);
     this.removeIframe();
   }

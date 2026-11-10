@@ -18,6 +18,10 @@ const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const packageJson = require("../package.json");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
+const sourceDateEpoch = process.env.SOURCE_DATE_EPOCH;
+const buildDate = sourceDateEpoch
+  ? new Date(Number(sourceDateEpoch) * 1000).toISOString().split("T")[0]
+  : new Date().toISOString().split("T")[0];
 const THEMES = ["default", "midgar", "solarized_dark", "solarized_light"];
 
 const buildLessEntries = () => {
@@ -53,7 +57,7 @@ const lessRule = {
       "/*!\n" +
       `* @name\t\t\t\t\t${packageJson.name}\n` +
       `* @version\t\t\tv${packageJson.version}\n` +
-      `* @date\t\t\t\t\t${new Date().toISOString().split("T")[0]}\n` +
+      `* @date\t\t\t\t\t${buildDate}\n` +
       `* @copyright\t\t${packageJson.copyright}\n` +
       `* @source\t\t\t\t${packageJson.repository}\n` +
       `* @license\t\t\t${packageJson.license}\n**/`,

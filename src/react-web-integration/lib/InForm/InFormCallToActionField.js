@@ -93,6 +93,7 @@ class InFormCallToActionField {
     this.insertInformCallToActionIframe = this.insertInformCallToActionIframe.bind(this);
     this.removeInFormCallToActionWhenMouseOut = this.removeInFormCallToActionWhenMouseOut.bind(this);
     this.removeInFormCallToAction = this.removeInFormCallToAction.bind(this);
+    this.scheduleRemoval = this.scheduleRemoval.bind(this);
     this.removeIframe = this.removeIframe.bind(this);
     this.destroy = this.destroy.bind(this);
   }
@@ -241,7 +242,7 @@ class InFormCallToActionField {
    */
   handleRemoveEvent() {
     this.field.addEventListener("mouseout", this.removeInFormCallToActionWhenMouseOut);
-    this.field.addEventListener("blur", this.removeInFormCallToAction);
+    this.field.addEventListener("blur", this.scheduleRemoval);
   }
 
   /**
@@ -326,7 +327,7 @@ class InFormCallToActionField {
     this.field.removeEventListener("mouseover", this.insertInformCallToActionIframe);
     this.field.removeEventListener("focus", this.insertInformCallToActionIframe);
     this.field.removeEventListener("mouseout", this.removeInFormCallToActionWhenMouseOut);
-    this.field.removeEventListener("blur", this.removeInFormCallToAction);
+    this.field.removeEventListener("blur", this.scheduleRemoval);
     this.scrollableFieldParent.removeEventListener("scroll", this.removeIframe);
     this.cancelScheduledRemoval();
     this.removeIframe();

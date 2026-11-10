@@ -5,7 +5,11 @@ import { withAppContext } from "../../../shared/context/AppContext/AppContext";
 import LogoSVG from "../../../img/svg/logo.svg";
 import PowerSVG from "../../../img/svg/power.svg";
 import { withActiveSessionLocalStorage } from "../../../shared/context/ActiveSession/ActiveSessionLocalStorageContext";
-import { withRouter } from "react-router-dom";
+import { Link, withRouter } from "react-router-dom";
+import { getServerLabel, withAccounts } from "../../../shared/context/Accounts/AccountsContext";
+import { AccountIdentity } from "../../../shared/components/Accounts/AccountSwitcherList/AccountSwitcherList";
+import { ACCOUNTS_ROUTE } from "../AccountsPage/AccountsPage";
+import CaretDownSVG from "../../../img/svg/caret_down.svg";
 import UserActiveSessionEntity from "../../../shared/models/entity/session/userActiveSessionEntity";
 
 class Header extends React.Component {
@@ -60,6 +64,15 @@ class Header extends React.Component {
       : this.handleOfflineLogoutClick;
   }
 
+  /**
+   * The current saved account, shown when the extension lists saved accounts.
+   * @returns {object|undefined}
+   */
+  get activeAccount() {
+    const { isAvailable, accounts = [], activeAccountId } = this.props.accountsContext || {};
+    return isAvailable ? accounts.find((account) => account.id === activeAccountId) : undefined;
+  }
+
   render() {
     return (
       <div className="quickaccess-header">
@@ -73,6 +86,20 @@ class Header extends React.Component {
             <LogoSVG role="img" width="10rem" height="1.8rem" />
           </a>
         </div>
+        {this.activeAccount && (
+          <Link
+            to={ACCOUNTS_ROUTE}
+            className="quickaccess-account-button button button-transparent"
+            aria-label={this.translate("Switch account. Current: {{username}} on {{server}}", {
+              username: this.activeAccount.username,
+              server: getServerLabel(this.activeAccount.domain),
+              interpolation: { escapeValue: false },
+            })}
+          >
+            <AccountIdentity account={this.activeAccount} />
+            <CaretDownSVG aria-hidden="true" />
+          </Link>
+        )}
         {this.props.activeSession?.isAuthenticated && (
           <span>
             <a
@@ -97,7 +124,10 @@ Header.propTypes = {
   context: PropTypes.any, // The application context
   activeSession: PropTypes.instanceOf(UserActiveSessionEntity), // The application active session
   history: PropTypes.any, // The history
+  accountsContext: PropTypes.object, // The saved accounts context
   t: PropTypes.func, // The translation function
 };
 
-export default withActiveSessionLocalStorage(withAppContext(withRouter(withTranslation("common")(Header))));
+export default withActiveSessionLocalStorage(
+  withAppContext(withRouter(withAccounts(withTranslation("common")(Header)))),
+);

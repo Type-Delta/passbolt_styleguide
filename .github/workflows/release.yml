@@ -1,15 +1,46 @@
-name: Release notes
+name: Styleguide fork release
+
 on:
   push:
     tags:
-      - "*"
+      - "fork-v*"
+
+permissions:
+  contents: write
+
 jobs:
-  create-shasums:
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+      - name: Verify pinned toolchain
+        run: |
+          test "$(node --version)" = "v22.14.0"
+          test "$(npm --version)" = "10.9.2"
+      - run: npm ci
+      - name: Build versioned fork tarball
+        run: |
+          npm run pack:fork -- \
+            --out ui-artifact \
+            --require-clean \
+            --require-pinned-toolchain
+      - name: Write checksums
+        run: cd ui-artifact && sha256sum * > SHA256SUMS
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ui-artifact/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" ui-artifact/* \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file RELEASE_NOTES.md
+          fi

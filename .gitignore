@@ -27,3 +27,8 @@ storybook-static/*
 
 ### dev scripts
 /scripts
+# Packaged fork artifacts
+/dist
+
+# Playwright CLI page state
+.playwright-cli/

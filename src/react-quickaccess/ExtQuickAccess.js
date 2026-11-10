@@ -44,6 +44,16 @@ import QuickAccessServerUnavailable from "./components/QuickAccessServerUnavaila
 import QuickAccessOfflineFooter from "./components/Offline/QuickAccessOfflineFooter";
 import OfflineLoginPage from "./components/Offline/OfflineLoginPage";
 import OfflineFooterDetailsPage from "./components/Offline/OfflineFooterDetailsPage";
+import AccountsContextProvider, { normalizeDomain } from "../shared/context/Accounts/AccountsContext";
+import AccountsServiceWorkerService from "../shared/services/api/accounts/AccountsServiceWorkerService";
+import AppContext from "../shared/context/AppContext/AppContext";
+import AccountsPage, {
+  ACCOUNTS_ROUTE,
+  ADD_ACCOUNT_ROUTE,
+  MANAGE_ACCOUNTS_ROUTE,
+} from "./components/AccountsPage/AccountsPage";
+import AddAccountPage from "./components/AddAccountPage/AddAccountPage";
+import ManageAccountsPage from "./components/ManageAccountsPage/ManageAccountsPage";
 
 const SEARCH_VISIBLE_ROUTES = [
   "/webAccessibleResources/quickaccess/home",
@@ -82,6 +92,7 @@ class ExtQuickAccess extends React.Component {
     this.handlePassphraseDialogCompleted = this.handlePassphraseDialogCompleted.bind(this);
     this.handleBackgroundPageConfirmMetadataKeyEvent = this.handleBackgroundPageConfirmMetadataKeyEvent.bind(this);
     this.handleConfirmMetadataKeyDialogCompleted = this.handleConfirmMetadataKeyDialogCompleted.bind(this);
+    this.closeWindow = this.closeWindow.bind(this);
   }
 
   /**
@@ -108,6 +119,7 @@ class ExtQuickAccess extends React.Component {
   get defaultState() {
     return {
       account: null, // The account
+      accountsOnlyRoute: null, // Set when the account cannot be read: only the account pages are available, opened on this route
       // Passphrase
       passphraseRequired: false,
       passphraseRequestId: "",
@@ -132,12 +144,32 @@ class ExtQuickAccess extends React.Component {
   }
 
   /**
-   * Get the account
+   * Get the foreground account, unless the quick access can only offer the account pages: no readable account,
+   * or a sign-in waiting for MFA on the same backend (which shares its cookies).
    * @returns {Promise<void>}
    */
   async getAccount() {
-    const accountDto = await this.props.port.request("passbolt.account.get");
-    const account = new AccountEntity(accountDto);
+    const accountsService = new AccountsServiceWorkerService(this.props.port);
+    // The public list decides; when it cannot be read, keep what is known rather than guess.
+    const listPromise = accountsService.list().catch((error) => {
+      console.error(error);
+      return null;
+    });
+    let account;
+    try {
+      account = new AccountEntity(await this.props.port.request("passbolt.account.get"));
+    } catch (error) {
+      console.error(error);
+      const list = await listPromise;
+      const isFirstUse = list?.accounts?.length === 0 && !list.pending;
+      this.setState({ accountsOnlyRoute: isFirstUse ? ADD_ACCOUNT_ROUTE : ACCOUNTS_ROUTE });
+      return;
+    }
+    const pending = (await listPromise)?.pending;
+    if (pending && normalizeDomain(pending.domain) === normalizeDomain(account.domain)) {
+      this.setState({ accountsOnlyRoute: ACCOUNTS_ROUTE });
+      return;
+    }
     this.setState({ account });
   }
 
@@ -218,189 +250,233 @@ class ExtQuickAccess extends React.Component {
   }
 
   /**
+   * The routes reachable without being signed in, including before any account is configured.
+   * @returns {JSX}
+   */
+  renderAccountRoutes() {
+    return [
+      <Route key="accounts" exact path={ACCOUNTS_ROUTE} component={AccountsPage} />,
+      <Route key="add-account" exact path={ADD_ACCOUNT_ROUTE} component={AddAccountPage} />,
+      <Route key="manage-accounts" exact path={MANAGE_ACCOUNTS_ROUTE} component={ManageAccountsPage} />,
+    ];
+  }
+
+  /**
+   * Quick access without a readable account: add, switch or manage saved accounts only.
+   * @returns {JSX}
+   */
+  renderWithoutAccount() {
+    const appContext = {
+      port: this.props.port,
+      storage: this.props.storage,
+      locale: "en-UK",
+      closeWindow: this.closeWindow,
+    };
+    return (
+      <AppContext.Provider value={appContext}>
+        <AccountsContextProvider port={this.props.port}>
+          <TranslationProvider loadingPath="/webAccessibleResources/locales/{{lng}}/{{ns}}.json">
+            <Router initialEntries={[this.state.accountsOnlyRoute]}>
+              <Header />
+              <Switch>{this.renderAccountRoutes()}</Switch>
+            </Router>
+          </TranslationProvider>
+        </AccountsContextProvider>
+      </AppContext.Provider>
+    );
+  }
+
+  /**
    * Renders the component
    * @returns {JSX.Element}
    */
   render() {
+    if (this.state.accountsOnlyRoute) {
+      return this.renderWithoutAccount();
+    }
     return (
       this.isReady() && (
-        <ActiveSessionLocalStorageContextProvider
-          account={this.state.account}
-          port={this.props.port}
-          storage={this.props.storage}
-        >
-          <ExtQuickAccessContextProvider
-            storage={this.props.storage}
-            port={this.props.port}
+        <AccountsContextProvider port={this.props.port}>
+          <ActiveSessionLocalStorageContextProvider
             account={this.state.account}
-            openerTabId={this.props.openerTabId}
-            bootstrapFeature={this.props.bootstrapFeature}
-            detached={this.props.detached}
+            port={this.props.port}
+            storage={this.props.storage}
           >
-            <TranslationProvider loadingPath="/webAccessibleResources/locales/{{lng}}/{{ns}}.json">
-              <OfflineSettingsLocalStorageContextProvider>
-                <Router initialEntries={[`/webAccessibleResources/quickaccess.html`]}>
-                  <Header />
-                  <ManageQuickAccessMode />
-                  <Switch>
-                    {/* The initial route the quickaccess panel is loaded on is a triage url. */}
-                    <Route
-                      exact
-                      path={"/webAccessibleResources/quickaccess.html"}
-                      render={() => <HandleBootstrapRoute bootstrapFeature={this.props.bootstrapFeature} />}
-                    />
-                    {/* The route when the user is not authenticated */}
-                    <Route
-                      exact
-                      path="/webAccessibleResources/quickaccess/login"
-                      render={() => (
-                        <SsoContextProvider>
-                          <LoginPage />
-                        </SsoContextProvider>
-                      )}
-                    />
-                    {/* The route to sign in when the server is not reachable (offline mode). */}
-                    <Route
-                      exact
-                      path="/webAccessibleResources/quickaccess/login-offline"
-                      render={() => <OfflineLoginPage />}
-                    />
-                    {/* The route displaying the expanded offline footer of Offline mode. */}
-                    <Route
-                      exact
-                      path="/webAccessibleResources/quickaccess/offline-footer-details"
-                      render={() => <OfflineFooterDetailsPage />}
-                    />
-                    {/* The route when the server is not reachable (offline). */}
-                    <Route
-                      exact
-                      path="/webAccessibleResources/quickaccess/server-not-reachable"
-                      component={QuickAccessServerUnavailable}
-                    />
-                    {/* Any other authenticated routes. */}
-                    <Route path="/">
-                      {this.state.passphraseRequired && (
-                        <PassphraseDialog
-                          requestId={this.state.passphraseRequestId}
-                          onComplete={this.handlePassphraseDialogCompleted}
-                        />
-                      )}
-                      {this.state.confirmMetadataKeyRequired && (
-                        <ConfirmMetadataKeyDialog
-                          requestId={this.state.confirmMetadataKeyRequestId}
-                          metadataKey={this.state.confirmMetadataKeyMetadataKey}
-                          metadataTrustedKey={this.state.confirmMetadataKeyMetadataTrustedKey}
-                          onComplete={this.handleConfirmMetadataKeyDialogCompleted}
-                        />
-                      )}
-                      <div
-                        className={`${this.state.passphraseRequired || this.state.confirmMetadataKeyRequired ? "visually-hidden" : ""}`}
-                      >
-                        <Route path={SEARCH_VISIBLE_ROUTES} render={() => <Search />} />
-                        <ResourceTypesLocalStorageContextProvider>
-                          <ResourceLocalStorageProvider>
-                            <MetadataTypesSettingsLocalStorageContextProvider>
-                              <MetadataKeysSettingsLocalStorageContextProvider>
-                                <PasswordPoliciesContext>
-                                  <PrepareResourceContextProvider>
-                                    <PasswordExpirySettingsContextProvider>
-                                      <AnimatedSwitch>
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/group"
-                                          component={FilterResourcesByGroupPage}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/group/:id"
-                                          component={FilterResourcesByGroupPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/tag"
-                                          component={FilterResourcesByTagPage}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/tag/:id"
-                                          component={FilterResourcesByTagPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/favorite"
-                                          component={FilterResourcesByFavoritePage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/owned-by-me"
-                                          component={FilterResourcesByItemsIOwnPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/recently-modified"
-                                          component={FilterResourcesByRecentlyModifiedPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/shared-with-me"
-                                          component={FilterResourcesBySharedWithMePage}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/create"
-                                          component={ResourceCreatePage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/confirm-create"
-                                          component={ConfirmCreatePage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/resources/autosave"
-                                          component={SaveResource}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/view/:id"
-                                          component={ResourceViewPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/more-filters"
-                                          component={MoreFiltersPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/setup-extension-in-progress"
-                                          component={SetupExtensionInProgress}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/generate-password"
-                                          component={GeneratePasswordPage}
-                                        />
-                                        <PrivateRoute
-                                          path="/webAccessibleResources/quickaccess/resources/action-aborted-missing-metadata-keys"
-                                          component={ActionAbortedMissingMetadataKeysPage}
-                                        />
-                                        <PrivateRoute
-                                          exact
-                                          path="/webAccessibleResources/quickaccess/home"
-                                          component={HomePage}
-                                        />
-                                      </AnimatedSwitch>
-                                    </PasswordExpirySettingsContextProvider>
-                                  </PrepareResourceContextProvider>
-                                </PasswordPoliciesContext>
-                              </MetadataKeysSettingsLocalStorageContextProvider>
-                            </MetadataTypesSettingsLocalStorageContextProvider>
-                          </ResourceLocalStorageProvider>
-                        </ResourceTypesLocalStorageContextProvider>
-                      </div>
-                    </Route>
-                  </Switch>
-                  <QuickAccessOfflineFooter />
-                </Router>
-              </OfflineSettingsLocalStorageContextProvider>
-            </TranslationProvider>
-          </ExtQuickAccessContextProvider>
-        </ActiveSessionLocalStorageContextProvider>
+            <ExtQuickAccessContextProvider
+              storage={this.props.storage}
+              port={this.props.port}
+              account={this.state.account}
+              openerTabId={this.props.openerTabId}
+              bootstrapFeature={this.props.bootstrapFeature}
+              detached={this.props.detached}
+            >
+              <TranslationProvider loadingPath="/webAccessibleResources/locales/{{lng}}/{{ns}}.json">
+                <OfflineSettingsLocalStorageContextProvider>
+                  <Router initialEntries={[`/webAccessibleResources/quickaccess.html`]}>
+                    <Header />
+                    <ManageQuickAccessMode />
+                    <Switch>
+                      {/* The initial route the quickaccess panel is loaded on is a triage url. */}
+                      <Route
+                        exact
+                        path={"/webAccessibleResources/quickaccess.html"}
+                        render={() => <HandleBootstrapRoute bootstrapFeature={this.props.bootstrapFeature} />}
+                      />
+                      {/* The route when the user is not authenticated */}
+                      <Route
+                        exact
+                        path="/webAccessibleResources/quickaccess/login"
+                        render={() => (
+                          <SsoContextProvider>
+                            <LoginPage />
+                          </SsoContextProvider>
+                        )}
+                      />
+                      {/* The route to sign in when the server is not reachable (offline mode). */}
+                      <Route
+                        exact
+                        path="/webAccessibleResources/quickaccess/login-offline"
+                        render={() => <OfflineLoginPage />}
+                      />
+                      {/* The route displaying the expanded offline footer of Offline mode. */}
+                      <Route
+                        exact
+                        path="/webAccessibleResources/quickaccess/offline-footer-details"
+                        render={() => <OfflineFooterDetailsPage />}
+                      />
+                      {/* Saved accounts: switch, add and manage, signed in or not. */}
+                      {this.renderAccountRoutes()}
+                      {/* The route when the server is not reachable (offline). */}
+                      <Route
+                        exact
+                        path="/webAccessibleResources/quickaccess/server-not-reachable"
+                        component={QuickAccessServerUnavailable}
+                      />
+                      {/* Any other authenticated routes. */}
+                      <Route path="/">
+                        {this.state.passphraseRequired && (
+                          <PassphraseDialog
+                            requestId={this.state.passphraseRequestId}
+                            onComplete={this.handlePassphraseDialogCompleted}
+                          />
+                        )}
+                        {this.state.confirmMetadataKeyRequired && (
+                          <ConfirmMetadataKeyDialog
+                            requestId={this.state.confirmMetadataKeyRequestId}
+                            metadataKey={this.state.confirmMetadataKeyMetadataKey}
+                            metadataTrustedKey={this.state.confirmMetadataKeyMetadataTrustedKey}
+                            onComplete={this.handleConfirmMetadataKeyDialogCompleted}
+                          />
+                        )}
+                        <div
+                          className={`${this.state.passphraseRequired || this.state.confirmMetadataKeyRequired ? "visually-hidden" : ""}`}
+                        >
+                          <Route path={SEARCH_VISIBLE_ROUTES} render={() => <Search />} />
+                          <ResourceTypesLocalStorageContextProvider>
+                            <ResourceLocalStorageProvider>
+                              <MetadataTypesSettingsLocalStorageContextProvider>
+                                <MetadataKeysSettingsLocalStorageContextProvider>
+                                  <PasswordPoliciesContext>
+                                    <PrepareResourceContextProvider>
+                                      <PasswordExpirySettingsContextProvider>
+                                        <AnimatedSwitch>
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/group"
+                                            component={FilterResourcesByGroupPage}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/group/:id"
+                                            component={FilterResourcesByGroupPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/tag"
+                                            component={FilterResourcesByTagPage}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/tag/:id"
+                                            component={FilterResourcesByTagPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/favorite"
+                                            component={FilterResourcesByFavoritePage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/owned-by-me"
+                                            component={FilterResourcesByItemsIOwnPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/recently-modified"
+                                            component={FilterResourcesByRecentlyModifiedPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/shared-with-me"
+                                            component={FilterResourcesBySharedWithMePage}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/create"
+                                            component={ResourceCreatePage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/confirm-create"
+                                            component={ConfirmCreatePage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/resources/autosave"
+                                            component={SaveResource}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/view/:id"
+                                            component={ResourceViewPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/more-filters"
+                                            component={MoreFiltersPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/setup-extension-in-progress"
+                                            component={SetupExtensionInProgress}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/generate-password"
+                                            component={GeneratePasswordPage}
+                                          />
+                                          <PrivateRoute
+                                            path="/webAccessibleResources/quickaccess/resources/action-aborted-missing-metadata-keys"
+                                            component={ActionAbortedMissingMetadataKeysPage}
+                                          />
+                                          <PrivateRoute
+                                            exact
+                                            path="/webAccessibleResources/quickaccess/home"
+                                            component={HomePage}
+                                          />
+                                        </AnimatedSwitch>
+                                      </PasswordExpirySettingsContextProvider>
+                                    </PrepareResourceContextProvider>
+                                  </PasswordPoliciesContext>
+                                </MetadataKeysSettingsLocalStorageContextProvider>
+                              </MetadataTypesSettingsLocalStorageContextProvider>
+                            </ResourceLocalStorageProvider>
+                          </ResourceTypesLocalStorageContextProvider>
+                        </div>
+                      </Route>
+                    </Switch>
+                    <QuickAccessOfflineFooter />
+                  </Router>
+                </OfflineSettingsLocalStorageContextProvider>
+              </TranslationProvider>
+            </ExtQuickAccessContextProvider>
+          </ActiveSessionLocalStorageContextProvider>
+        </AccountsContextProvider>
       )
     );
   }
