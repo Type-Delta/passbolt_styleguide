@@ -17,6 +17,7 @@ import HttpApi from "i18next-http-backend";
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { withAppContext } from "../../../../shared/context/AppContext/AppContext";
+import { getTranslationPath } from "../../../../shared/components/Internationalisation/translationPath";
 
 /**
  * The locales default path.
@@ -88,15 +89,10 @@ class TranslationProvider extends Component {
    *
    * @param {string[]} lngs - Array of language codes from i18next
    * @param {string[]} namespaces - Array of namespace identifiers
-   * @returns {string} The resolved translation file path with en-GB mapped to en-UK
+   * @returns {string} The translation file URL, see translationPath.getTranslationPath
    */
   getTranslationPath(lngs, namespaces) {
-    const lng = lngs[0];
-    const ns = namespaces[0];
-    // i18next is doing a fallback on en-GB we are redirecting to our en-UK folder
-    const actualLng = lng === "en-GB" ? "en-UK" : lng;
-    const basePath = this.props.loadingPath || defaultLocalesPath;
-    return basePath.replace("{{lng}}", actualLng).replace("{{ns}}", ns);
+    return getTranslationPath(this.props.loadingPath || defaultLocalesPath, lngs[0], namespaces[0]);
   }
 
   /**
