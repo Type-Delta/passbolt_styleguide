@@ -32,6 +32,8 @@ jobs:
           test "$(node --version)" = "v22.14.0"
           test "$(npm --version)" = "10.9.2"
       - run: npm ci
+      - name: Verify checkout-independent LESS entries
+        run: node --test config/webpack.less.test.cjs
       - run: npm run lint
       - run: npm run test:unit -- --runInBand
       - name: Build versioned fork tarball

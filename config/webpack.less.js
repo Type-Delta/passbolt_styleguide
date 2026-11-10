@@ -34,7 +34,7 @@ const buildLessEntries = () => {
     for (const file of lessFiles) {
       if (file.isFile() && file.name.endsWith(".less")) {
         const fullPath = path.resolve(file.parentPath, file.name);
-        acc[fullPath] = fullPath;
+        acc[path.relative(ROOT_DIR, fullPath).split(path.sep).join("/")] = fullPath;
       }
     }
 
