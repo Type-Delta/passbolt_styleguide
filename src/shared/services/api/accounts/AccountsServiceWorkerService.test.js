@@ -17,6 +17,10 @@ import AccountsServiceWorkerService, {
   ACCOUNTS_CHANGED_EVENT,
   CANCEL_PENDING_ACCOUNT,
   ADD_ACCOUNT,
+  CHECK_PASSPHRASE,
+  OPEN_ADD_ACCOUNT_TAB,
+  VALIDATE_PRIVATE_KEY,
+  VERIFY_SERVER,
   LIST_ACCOUNTS,
   LOCK_ACCOUNT,
   REMOVE_ACCOUNT,
@@ -80,5 +84,35 @@ describe("AccountsServiceWorkerService", () => {
     await expect(service.cancelPending()).resolves.toEqual(accountsListDto());
     // MockPort appends its storage as the only argument.
     expect(listener.mock.calls[0]).toHaveLength(1);
+  });
+
+  it("uses the frozen onboarding message names", () => {
+    expect.assertions(4);
+    expect(OPEN_ADD_ACCOUNT_TAB).toBe("passbolt.accounts.open-add-tab");
+    expect(VERIFY_SERVER).toBe("passbolt.accounts.verify-server");
+    expect(VALIDATE_PRIVATE_KEY).toBe("passbolt.accounts.validate-private-key");
+    expect(CHECK_PASSPHRASE).toBe("passbolt.accounts.check-passphrase");
+  });
+
+  it("opens the add account tab with an optional server hint only", async () => {
+    expect.assertions(2);
+    const listener = jest.fn().mockResolvedValue({ tab_id: 3 });
+    port.addRequestListener(OPEN_ADD_ACCOUNT_TAB, listener);
+    await service.openAddTab("https://a.test");
+    await service.openAddTab();
+    expect(listener.mock.calls[0][0]).toEqual({ domain: "https://a.test" });
+    expect(listener.mock.calls[1][0]).toEqual({});
+  });
+
+  it.each([
+    [VERIFY_SERVER, "verifyServer", { domain: "https://a.test", remember: true }],
+    [VALIDATE_PRIVATE_KEY, "validatePrivateKey", { username: "ada@a.test", user_private_armored_key: "key" }],
+    [CHECK_PASSPHRASE, "checkPassphrase", { user_private_armored_key: "key", passphrase: "secret" }],
+  ])("sends %s with its contract payload", async (message, method, dto) => {
+    expect.assertions(1);
+    const listener = jest.fn().mockResolvedValue({});
+    port.addRequestListener(message, listener);
+    await service[method](dto);
+    expect(listener.mock.calls[0][0]).toEqual(dto);
   });
 });

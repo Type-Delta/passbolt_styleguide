@@ -34,6 +34,10 @@ export const AccountsContext = React.createContext({
   removeAccount: () => {},
   lockAccount: () => {},
   cancelPending: () => {},
+  openAddAccount: () => {},
+  verifyServer: () => {},
+  validatePrivateKey: () => {},
+  checkPassphrase: () => {},
 });
 
 /**
@@ -84,6 +88,10 @@ export class AccountsContextProvider extends React.Component {
       removeAccount: this.removeAccount.bind(this),
       lockAccount: this.lockAccount.bind(this),
       cancelPending: this.cancelPending.bind(this),
+      openAddAccount: this.openAddAccount.bind(this),
+      verifyServer: this.verifyServer.bind(this),
+      validatePrivateKey: this.validatePrivateKey.bind(this),
+      checkPassphrase: this.checkPassphrase.bind(this),
     };
     this.applyList = this.applyList.bind(this);
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
@@ -167,6 +175,39 @@ export class AccountsContextProvider extends React.Component {
 
   async cancelPending() {
     this.applyList(await this.accountsService.cancelPending());
+  }
+
+  /**
+   * Open the add account wizard in its own tab.
+   * @param {string} [domain] The server to suggest, verified again by the wizard
+   * @returns {Promise<{tab_id: number}>}
+   */
+  openAddAccount(domain) {
+    return this.accountsService.openAddTab(domain);
+  }
+
+  /**
+   * Verify a server and remember its public metadata once the user continues with it.
+   * @returns {Promise<{domain: string, server_key_fingerprint: string, checked_at: string, is_known: boolean}>}
+   */
+  verifyServer(domain) {
+    return this.accountsService.verifyServer({ domain, remember: true });
+  }
+
+  /**
+   * @param {{username: string, user_private_armored_key: string}} validatePrivateKeyDto
+   * @returns {Promise<{fingerprint: string, expires: string, matches_email: boolean}>}
+   */
+  validatePrivateKey(validatePrivateKeyDto) {
+    return this.accountsService.validatePrivateKey(validatePrivateKeyDto);
+  }
+
+  /**
+   * @param {{user_private_armored_key: string, passphrase: string}} checkPassphraseDto
+   * @returns {Promise<void>}
+   */
+  checkPassphrase(checkPassphraseDto) {
+    return this.accountsService.checkPassphrase(checkPassphraseDto);
   }
 
   render() {

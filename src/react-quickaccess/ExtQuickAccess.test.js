@@ -18,11 +18,11 @@
 
 import "@testing-library/jest-dom";
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MockPort from "../react-extension/test/mock/MockPort";
 import MockTranslationProvider from "../react-extension/test/mock/components/Internationalisation/MockTranslationProvider";
 import ExtQuickAccess from "./ExtQuickAccess";
-import { LIST_ACCOUNTS } from "../shared/services/api/accounts/AccountsServiceWorkerService";
+import { LIST_ACCOUNTS, OPEN_ADD_ACCOUNT_TAB } from "../shared/services/api/accounts/AccountsServiceWorkerService";
 import { accountsListDto } from "../shared/context/Accounts/AccountsContext.test.data";
 import { defaultAccountDto } from "../shared/models/entity/account/accountEntity.test.data";
 import MockStorage from "../react-extension/test/mock/MockStorage";
@@ -54,21 +54,26 @@ describe("ExtQuickAccess", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("opens on adding an account when no account is configured yet", async () => {
-    const port = new MockPort();
-    port.addRequestListener("passbolt.account.get", () => Promise.reject(new Error("No account configured.")));
-    port.addRequestListener(LIST_ACCOUNTS, () => ({ active_account_id: null, accounts: [], servers: [] }));
-    jest.spyOn(console, "error").mockImplementation(() => {});
+  it("opens on the accounts launcher, never an import form, when no account is configured yet", async () => {
+    const port = renderQuickAccess({
+      getAccount: () => Promise.reject(new Error("No account configured.")),
+      list: () => ({ active_account_id: null, accounts: [], servers: [] }),
+    });
+    const openAddTab = jest.fn(() => ({ tab_id: 7 }));
+    port.addRequestListener(OPEN_ADD_ACCOUNT_TAB, openAddTab);
+    jest.spyOn(window, "close").mockImplementation(() => {});
 
-    render(
-      <MockTranslationProvider>
-        <ExtQuickAccess port={port} storage={{}} />
-      </MockTranslationProvider>,
-    );
-
-    expect(await screen.findByRole("heading", { name: "Add your Passbolt account" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Server")).toHaveValue(""));
-    expect(screen.getByRole("button", { name: "Add account" })).toBeEnabled();
+    // The first render of the file pays the cold start of the quick access and its account list.
+    expect(
+      await screen.findByText("No Passbolt account in this browser yet.", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Accounts" }).closest(".container.quickaccess")).not.toBeNull();
+    expect(document.querySelector(".quickaccess .quickaccess-header")).not.toBeNull();
+    expect(document.querySelector("textarea, input[type=password]")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add server" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add account" }));
+    await waitFor(() => expect(window.close).toHaveBeenCalled());
+    expect(openAddTab.mock.calls[0][0]).toEqual({});
   });
 
   it("keeps the saved accounts reachable when the account cannot be read during a pending sign-in", async () => {
@@ -77,11 +82,13 @@ describe("ExtQuickAccess", () => {
       list: () =>
         accountsListDto({ pending: { domain: "https://b.example", username: "erin@b.example", expires_at: 1 } }),
     });
-    expect(await screen.findByRole("list", { name: "Saved accounts" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("list", { name: "Accounts on https://passbolt.work.example/vault" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("alex.moreau@work.example")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Waiting for multi-factor authentication for erin@b.example");
     expect(screen.getByRole("button", { name: "Cancel the sign-in of erin@b.example" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Add your Passbolt account" })).toBeNull();
+    expect(screen.queryByText("No Passbolt account in this browser yet.")).toBeNull();
   });
 
   it("does not pretend first use when the first new account is still pending MFA", async () => {
@@ -97,7 +104,7 @@ describe("ExtQuickAccess", () => {
     expect(await screen.findByRole("heading", { name: "Accounts" })).toBeInTheDocument();
     expect(await screen.findByText(/erin@b.example on b.example/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add account" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Add your Passbolt account" })).toBeNull();
+    expect(screen.queryByText("No Passbolt account in this browser yet.")).toBeNull();
   });
 
   it("does not pretend first use when the saved accounts cannot be listed", async () => {
@@ -107,7 +114,7 @@ describe("ExtQuickAccess", () => {
     });
     expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(screen.getByText("Saved accounts could not be loaded.")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Add your Passbolt account" })).toBeNull();
+    expect(screen.queryByText("No Passbolt account in this browser yet.")).toBeNull();
   });
 
   describe("with a readable account", () => {
@@ -150,7 +157,7 @@ describe("ExtQuickAccess", () => {
     it("keeps the known account when the saved accounts cannot be listed", async () => {
       const storage = renderWithAccount(() => Promise.reject(new Error("Disconnected port.")));
       await waitFor(() => expect(storage.local.get).toHaveBeenCalled());
-      expect(screen.queryByRole("heading", { name: "Add your Passbolt account" })).toBeNull();
+      expect(screen.queryByText("No Passbolt account in this browser yet.")).toBeNull();
     });
   });
 });

@@ -15,6 +15,7 @@
 /**
  * Unit tests on CreateGpgKey in regard of specifications
  */
+import { act, fireEvent, waitFor } from "@testing-library/react";
 import ImportGpgKeyPage from "./ImportGpgKey.test.page";
 import { ImportGpgKeyVariations } from "./ImportGpgKey";
 import { defaultProps } from "./ImportGpgKey.test.data";
@@ -252,5 +253,24 @@ describe("ImportGpgKey", () => {
       expect(page.warningMessage).toContain("The private key should not have an expiry date.");
       expect(page.warningMessage).toContain("Once expired you will not be able to connect to your account.");
     });
+  });
+
+  it("does not complete an import whose step was left while the key was validated", async () => {
+    const pendingValidations = [];
+    const onComplete = jest.fn(() => Promise.resolve());
+    const props = defaultProps({
+      displayAs: ImportGpgKeyVariations.ADD_ACCOUNT,
+      onComplete,
+      validatePrivateGpgKey: jest.fn(() => new Promise((resolve) => pendingValidations.push(resolve))),
+    });
+    const page = new ImportGpgKeyPage(props);
+    fireEvent.change(page.privateKeyInput, { target: { value: "-----BEGIN PGP PRIVATE KEY BLOCK-----" } });
+    fireEvent.submit(page.privateKeyInput.closest("form"));
+    await waitFor(() => expect(props.validatePrivateGpgKey).toHaveBeenCalled());
+    page._page.unmount();
+    await act(async () => pendingValidations.forEach((resolve) => resolve()));
+    // Let the abandoned submit run to its end.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(onComplete).not.toHaveBeenCalled();
   });
 });

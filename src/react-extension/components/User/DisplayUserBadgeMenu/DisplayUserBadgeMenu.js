@@ -29,7 +29,7 @@ import NotifyError from "../../Common/Error/NotifyError/NotifyError";
 import { getServerLabel, withAccounts } from "../../../../shared/context/Accounts/AccountsContext";
 import AccountSwitcherList from "../../../../shared/components/Accounts/AccountSwitcherList/AccountSwitcherList";
 import PendingAccountNotice from "../../../../shared/components/Accounts/PendingAccountNotice/PendingAccountNotice";
-import AddAccountDialog from "../AddAccountDialog/AddAccountDialog";
+import OpenAddAccountButton from "../../../../shared/components/Accounts/OpenAddAccountButton/OpenAddAccountButton";
 import ManageAccountsDialog from "../ManageAccountsDialog/ManageAccountsDialog";
 import UserAddSVG from "../../../../img/svg/user_add.svg";
 import UserCogSVG from "../../../../img/svg/user_cog.svg";
@@ -67,10 +67,10 @@ class DisplayUserBadgeMenu extends Component {
     this.handleToggleMenuClick = this.handleToggleMenuClick.bind(this);
     this.handleProfileClick = this.handleProfileClick.bind(this);
     this.handleSignOutClick = this.handleSignOutClick.bind(this);
-    this.handleAddAccountClick = this.handleAddAccountClick.bind(this);
     this.handleManageAccountsClick = this.handleManageAccountsClick.bind(this);
     this.handleAccountSwitched = this.handleAccountSwitched.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.closeUserBadgeMenu = this.closeUserBadgeMenu.bind(this);
   }
 
   componentDidMount() {
@@ -205,11 +205,6 @@ class DisplayUserBadgeMenu extends Component {
     }
   }
 
-  handleAddAccountClick() {
-    this.closeUserBadgeMenu();
-    this.props.dialogContext.open(AddAccountDialog);
-  }
-
   handleManageAccountsClick() {
     this.closeUserBadgeMenu();
     this.props.dialogContext.open(ManageAccountsDialog);
@@ -268,10 +263,15 @@ class DisplayUserBadgeMenu extends Component {
             />
           </>
         )}
-        <button type="button" className="no-border account-switcher-action" onClick={this.handleAddAccountClick}>
+        <OpenAddAccountButton
+          onOpen={this.props.accountsContext.openAddAccount}
+          className="no-border account-switcher-action"
+          domain={this.activeAccount?.domain}
+          onOpened={this.closeUserBadgeMenu}
+        >
           <UserAddSVG aria-hidden="true" />
           <Trans>Add account</Trans>
-        </button>
+        </OpenAddAccountButton>
         {accounts.length > 0 && (
           <button type="button" className="no-border account-switcher-action" onClick={this.handleManageAccountsClick}>
             <UserCogSVG aria-hidden="true" />

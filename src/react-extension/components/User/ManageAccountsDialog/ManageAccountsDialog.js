@@ -18,24 +18,13 @@ import { Trans, withTranslation } from "react-i18next";
 import DialogWrapper from "../../Common/Dialog/DialogWrapper/DialogWrapper";
 import ManageAccountsList from "../../../../shared/components/Accounts/ManageAccountsList/ManageAccountsList";
 import { withAccounts } from "../../../../shared/context/Accounts/AccountsContext";
-import { withDialog } from "../../../contexts/DialogContext";
-import AddAccountDialog from "../AddAccountDialog/AddAccountDialog";
+import OpenAddAccountButton from "../../../../shared/components/Accounts/OpenAddAccountButton/OpenAddAccountButton";
 import UserAddSVG from "../../../../img/svg/user_add.svg";
 
 /**
  * Lock or remove the accounts saved in this browser, or add another one.
  */
 class ManageAccountsDialog extends Component {
-  constructor(props) {
-    super(props);
-    this.handleAddAccountClick = this.handleAddAccountClick.bind(this);
-  }
-
-  handleAddAccountClick() {
-    this.props.onClose();
-    this.props.dialogContext.open(AddAccountDialog);
-  }
-
   render() {
     const { accounts, activeAccountId, lockAccount, removeAccount } = this.props.accountsContext;
     return (
@@ -53,10 +42,14 @@ class ManageAccountsDialog extends Component {
           />
         </div>
         <div className="submit-wrapper clearfix">
-          <button type="button" className="button" onClick={this.handleAddAccountClick}>
+          <OpenAddAccountButton
+            onOpen={this.props.accountsContext.openAddAccount}
+            className="button"
+            onOpened={this.props.onClose}
+          >
             <UserAddSVG aria-hidden="true" />
             <Trans>Add account</Trans>
-          </button>
+          </OpenAddAccountButton>
           <button type="button" className="button primary" onClick={this.props.onClose}>
             <Trans>Done</Trans>
           </button>
@@ -68,9 +61,8 @@ class ManageAccountsDialog extends Component {
 
 ManageAccountsDialog.propTypes = {
   accountsContext: PropTypes.object, // The accounts context
-  dialogContext: PropTypes.object, // The dialog context
   onClose: PropTypes.func, // Close the dialog
   t: PropTypes.func, // The translation function
 };
 
-export default withAccounts(withDialog(withTranslation("common")(ManageAccountsDialog)));
+export default withAccounts(withTranslation("common")(ManageAccountsDialog));

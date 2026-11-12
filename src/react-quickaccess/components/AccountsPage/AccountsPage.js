@@ -20,21 +20,24 @@ import { withAppContext } from "../../../shared/context/AppContext/AppContext";
 import { withAccounts } from "../../../shared/context/Accounts/AccountsContext";
 import AccountSwitcherList from "../../../shared/components/Accounts/AccountSwitcherList/AccountSwitcherList";
 import PendingAccountNotice from "../../../shared/components/Accounts/PendingAccountNotice/PendingAccountNotice";
+import OpenAddAccountButton from "../../../shared/components/Accounts/OpenAddAccountButton/OpenAddAccountButton";
 import CaretLeftSVG from "../../../img/svg/caret_left.svg";
 import SpinnerSVG from "../../../img/svg/spinner.svg";
 
 export const ACCOUNTS_ROUTE = "/webAccessibleResources/quickaccess/accounts";
-export const ADD_ACCOUNT_ROUTE = "/webAccessibleResources/quickaccess/accounts/add";
+export const ADD_ACCOUNT_ROUTE = "/webAccessibleResources/quickaccess/accounts/add"; // Kept as a redirect only
 export const MANAGE_ACCOUNTS_ROUTE = "/webAccessibleResources/quickaccess/accounts/manage";
 
 /**
- * Quick access account switcher: one click on a saved account switches to it.
+ * Saved accounts grouped by server: switch in one click, or open the add account tab. The popup never asks for a
+ * key or a passphrase.
  */
 class AccountsPage extends Component {
   constructor(props) {
     super(props);
     this.handleGoBackClick = this.handleGoBackClick.bind(this);
-    this.handleAccountSwitched = this.handleAccountSwitched.bind(this);
+    this.closeWindow = this.closeWindow.bind(this);
+    this.renderServerActions = this.renderServerActions.bind(this);
   }
 
   handleGoBackClick(event) {
@@ -43,15 +46,39 @@ class AccountsPage extends Component {
   }
 
   /**
-   * The extension navigates to the selected account, or to its sign-in step when locked. This popup's port
-   * belongs to the previous account, so it closes; reopening it connects to the selected account.
+   * The extension navigates to the selected account, or opened the add account tab. This popup's port belongs to
+   * the previous account, so it closes; reopening it connects to the selected account.
    */
-  handleAccountSwitched() {
+  closeWindow() {
     return this.props.context.closeWindow();
   }
 
+  get activeDomain() {
+    const { accounts, activeAccountId } = this.props.accountsContext;
+    return accounts.find((account) => account.id === activeAccountId)?.domain;
+  }
+
+  get isEmpty() {
+    const { accounts, servers, isLoading, loadError, pending } = this.props.accountsContext;
+    return accounts.length === 0 && servers.length === 0 && !isLoading && !loadError && !pending;
+  }
+
+  renderServerActions(domain) {
+    return (
+      <OpenAddAccountButton
+        onOpen={this.props.accountsContext.openAddAccount}
+        domain={domain}
+        className="link account-server-add"
+        label={this.props.t("Add account on {{server}}", { server: domain, interpolation: { escapeValue: false } })}
+        onOpened={this.closeWindow}
+      >
+        <Trans>Add account</Trans>
+      </OpenAddAccountButton>
+    );
+  }
+
   render() {
-    const { accounts, activeAccountId, isLoading, loadError, refresh, switchAccount, pending, cancelPending } =
+    const { accounts, servers, activeAccountId, isLoading, loadError, refresh, switchAccount, pending, cancelPending } =
       this.props.accountsContext;
     return (
       <div className="index-list accounts-page">
@@ -85,18 +112,45 @@ class AccountsPage extends Component {
               </button>
             </p>
           )}
+          {this.isEmpty && (
+            <div className="accounts-empty">
+              <p className="accounts-empty-title">
+                <Trans>No Passbolt account in this browser yet.</Trans>
+              </p>
+              <p>
+                <Trans>Add the account you use on your Passbolt server. It opens in a new tab.</Trans>
+              </p>
+            </div>
+          )}
           <AccountSwitcherList
             accounts={accounts}
+            servers={servers}
             activeAccountId={activeAccountId}
             showActive={true}
+            groupByServer={true}
+            renderServerActions={this.renderServerActions}
             onSwitch={switchAccount}
-            onSwitched={this.handleAccountSwitched}
+            onSwitched={this.closeWindow}
           />
         </div>
         <div className="submit-wrapper accounts-page-actions">
-          <Link to={ADD_ACCOUNT_ROUTE} className="button primary big full-width" role="button">
+          <OpenAddAccountButton
+            onOpen={this.props.accountsContext.openAddAccount}
+            domain={this.activeDomain}
+            className="button primary big full-width"
+            onOpened={this.closeWindow}
+          >
             <Trans>Add account</Trans>
-          </Link>
+          </OpenAddAccountButton>
+          {servers.length > 0 && (
+            <OpenAddAccountButton
+              onOpen={this.props.accountsContext.openAddAccount}
+              className="button big full-width"
+              onOpened={this.closeWindow}
+            >
+              <Trans>Add server</Trans>
+            </OpenAddAccountButton>
+          )}
           {accounts.length > 0 && (
             <Link to={MANAGE_ACCOUNTS_ROUTE} className="button big full-width" role="button">
               <Trans>Manage accounts</Trans>

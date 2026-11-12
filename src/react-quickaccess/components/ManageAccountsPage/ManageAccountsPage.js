@@ -14,11 +14,12 @@
 
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import { Link, withRouter } from "react-router-dom";
+import { withRouter } from "react-router-dom";
 import { Trans, withTranslation } from "react-i18next";
 import { withAccounts } from "../../../shared/context/Accounts/AccountsContext";
 import ManageAccountsList from "../../../shared/components/Accounts/ManageAccountsList/ManageAccountsList";
-import { ADD_ACCOUNT_ROUTE } from "../AccountsPage/AccountsPage";
+import { withAppContext } from "../../../shared/context/AppContext/AppContext";
+import OpenAddAccountButton from "../../../shared/components/Accounts/OpenAddAccountButton/OpenAddAccountButton";
 import CaretLeftSVG from "../../../img/svg/caret_left.svg";
 
 /**
@@ -54,9 +55,13 @@ class ManageAccountsPage extends Component {
           onRemove={removeAccount}
         />
         <div className="submit-wrapper">
-          <Link to={ADD_ACCOUNT_ROUTE} className="button big full-width" role="button">
+          <OpenAddAccountButton
+            onOpen={this.props.accountsContext.openAddAccount}
+            className="button big full-width"
+            onOpened={this.props.context.closeWindow}
+          >
             <Trans>Add account</Trans>
-          </Link>
+          </OpenAddAccountButton>
         </div>
       </div>
     );
@@ -64,9 +69,10 @@ class ManageAccountsPage extends Component {
 }
 
 ManageAccountsPage.propTypes = {
+  context: PropTypes.any, // The application context
   accountsContext: PropTypes.object, // The accounts context
   history: PropTypes.object, // The router history
   t: PropTypes.func, // The translation function
 };
 
-export default withRouter(withAccounts(withTranslation("common")(ManageAccountsPage)));
+export default withAppContext(withRouter(withAccounts(withTranslation("common")(ManageAccountsPage))));

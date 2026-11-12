@@ -91,6 +91,23 @@ export function defaultAccountsContext(data = {}) {
     removeAccount: jest.fn(() => Promise.resolve()),
     lockAccount: jest.fn(() => Promise.resolve()),
     cancelPending: jest.fn(() => Promise.resolve()),
+    openAddAccount: jest.fn(() => Promise.resolve({ tab_id: 1 })),
+    verifyServer: jest.fn((domain) =>
+      Promise.resolve({
+        domain,
+        server_key_fingerprint: "0C1D1761110D1E33C9006D1A5B1B332ED06426D3",
+        checked_at: "2026-11-12T10:00:00.000Z",
+        is_known: false,
+      }),
+    ),
+    validatePrivateKey: jest.fn(() =>
+      Promise.resolve({
+        fingerprint: "03F60E958F4CB29723ACDF761353B5B15D9B054F",
+        expires: "Infinity",
+        matches_email: true,
+      }),
+    ),
+    checkPassphrase: jest.fn(() => Promise.resolve()),
     ...data,
   };
 }

@@ -17,9 +17,7 @@ import { MemoryRouter, Route, Switch } from "react-router-dom";
 import AppContext from "../../../shared/context/AppContext/AppContext";
 import { AccountsContext } from "../../../shared/context/Accounts/AccountsContext";
 import { defaultAccountsContext } from "../../../shared/context/Accounts/AccountsContext.test.data";
-import { fillAndSubmitAddAccount } from "../../../shared/context/Accounts/AccountsStories.test.data";
-import AccountsPage, { ACCOUNTS_ROUTE, ADD_ACCOUNT_ROUTE, MANAGE_ACCOUNTS_ROUTE } from "./AccountsPage";
-import AddAccountPage from "../AddAccountPage/AddAccountPage";
+import AccountsPage, { ACCOUNTS_ROUTE, MANAGE_ACCOUNTS_ROUTE } from "./AccountsPage";
 import ManageAccountsPage from "../ManageAccountsPage/ManageAccountsPage";
 import Header from "../Header/Header";
 
@@ -40,7 +38,6 @@ const Template = ({ accountsContext, initialEntries }) => (
           <Header />
           <Switch>
             <Route exact path={ACCOUNTS_ROUTE} component={AccountsPage} />
-            <Route exact path={ADD_ACCOUNT_ROUTE} component={AddAccountPage} />
             <Route exact path={MANAGE_ACCOUNTS_ROUTE} component={ManageAccountsPage} />
             <Route path="/" render={() => <p style={{ padding: "1.6rem" }}>Home</p>} />
           </Switch>
@@ -63,22 +60,22 @@ export const Loading = {
   },
 };
 
-export const AddAccount = {
-  render: Template,
-  args: { accountsContext: defaultAccountsContext(), initialEntries: ["/home", ACCOUNTS_ROUTE, ADD_ACCOUNT_ROUTE] },
-};
-
-export const AddFirstAccount = {
+export const FirstUse = {
   render: Template,
   args: {
     accountsContext: defaultAccountsContext({ accounts: [], activeAccountId: null, servers: [] }),
-    initialEntries: [ADD_ACCOUNT_ROUTE],
+    initialEntries: [ACCOUNTS_ROUTE],
   },
 };
 
-export const AddAccountPendingMfa = {
-  ...AddAccount,
-  play: fillAndSubmitAddAccount,
+export const ServerWithoutAccount = {
+  render: Template,
+  args: {
+    accountsContext: defaultAccountsContext({
+      servers: [...defaultAccountsContext().servers, { domain: "https://empty.example/passbolt" }],
+    }),
+    initialEntries: ["/home", ACCOUNTS_ROUTE],
+  },
 };
 
 export const ManageAccounts = {

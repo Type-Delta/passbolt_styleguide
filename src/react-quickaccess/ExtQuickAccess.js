@@ -12,7 +12,7 @@ import MoreFiltersPage from "./components/MoreFiltersPage/MoreFiltersPage";
 import ResourceCreatePage from "./components/ResourceCreatePage/ResourceCreatePage";
 import ResourceViewPage from "./components/ResourceViewPage/ResourceViewPage";
 import Search from "./components/Search/Search";
-import { MemoryRouter as Router, Route, Switch } from "react-router-dom";
+import { MemoryRouter as Router, Redirect, Route, Switch } from "react-router-dom";
 import AnimatedSwitch from "./components/AnimatedSwitch/AnimatedSwitch";
 import PassphraseDialog from "./components/PassphraseDialog/PassphraseDialog";
 import PropTypes from "prop-types";
@@ -52,7 +52,6 @@ import AccountsPage, {
   ADD_ACCOUNT_ROUTE,
   MANAGE_ACCOUNTS_ROUTE,
 } from "./components/AccountsPage/AccountsPage";
-import AddAccountPage from "./components/AddAccountPage/AddAccountPage";
 import ManageAccountsPage from "./components/ManageAccountsPage/ManageAccountsPage";
 
 const SEARCH_VISIBLE_ROUTES = [
@@ -160,9 +159,8 @@ class ExtQuickAccess extends React.Component {
       account = new AccountEntity(await this.props.port.request("passbolt.account.get"));
     } catch (error) {
       console.error(error);
-      const list = await listPromise;
-      const isFirstUse = list?.accounts?.length === 0 && !list.pending;
-      this.setState({ accountsOnlyRoute: isFirstUse ? ADD_ACCOUNT_ROUTE : ACCOUNTS_ROUTE });
+      // First use included: the accounts page offers to open the add account tab, never an import form.
+      this.setState({ accountsOnlyRoute: ACCOUNTS_ROUTE });
       return;
     }
     const pending = (await listPromise)?.pending;
@@ -256,7 +254,9 @@ class ExtQuickAccess extends React.Component {
   renderAccountRoutes() {
     return [
       <Route key="accounts" exact path={ACCOUNTS_ROUTE} component={AccountsPage} />,
-      <Route key="add-account" exact path={ADD_ACCOUNT_ROUTE} component={AddAccountPage} />,
+      <Route key="add-account" exact path={ADD_ACCOUNT_ROUTE}>
+        <Redirect to={ACCOUNTS_ROUTE} />
+      </Route>,
       <Route key="manage-accounts" exact path={MANAGE_ACCOUNTS_ROUTE} component={ManageAccountsPage} />,
     ];
   }
@@ -276,10 +276,12 @@ class ExtQuickAccess extends React.Component {
       <AppContext.Provider value={appContext}>
         <AccountsContextProvider port={this.props.port}>
           <TranslationProvider loadingPath="/webAccessibleResources/locales/{{lng}}/{{ns}}.json">
-            <Router initialEntries={[this.state.accountsOnlyRoute]}>
-              <Header />
-              <Switch>{this.renderAccountRoutes()}</Switch>
-            </Router>
+            <div className="container quickaccess">
+              <Router initialEntries={[this.state.accountsOnlyRoute]}>
+                <Header />
+                <Switch>{this.renderAccountRoutes()}</Switch>
+              </Router>
+            </div>
           </TranslationProvider>
         </AccountsContextProvider>
       </AppContext.Provider>

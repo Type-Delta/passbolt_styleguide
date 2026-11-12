@@ -22,6 +22,7 @@ import {
   LIST_ACCOUNTS,
   LOCK_ACCOUNT,
   REMOVE_ACCOUNT,
+  VERIFY_SERVER,
 } from "../../services/api/accounts/AccountsServiceWorkerService";
 import { ACCOUNT_WORK_ID, PENDING_SIGN_IN, accountsListDto } from "./AccountsContext.test.data";
 
@@ -160,5 +161,16 @@ describe("AccountsContext", () => {
     expect(page.context.loadError.message).toEqual("Disconnected port.");
     expect(page.context.accounts).toHaveLength(3);
     expect(page.context.pending).toEqual(PENDING_SIGN_IN);
+  });
+
+  it("asks the extension to remember the server it verifies for the wizard", async () => {
+    expect.assertions(2);
+    port.addRequestListener(LIST_ACCOUNTS, () => accountsListDto());
+    const verified = { domain: "https://a.test", server_key_fingerprint: "F", checked_at: "t", is_known: false };
+    const listener = jest.fn(() => verified);
+    port.addRequestListener(VERIFY_SERVER, listener);
+    const page = renderProvider(port);
+    await expect(page.context.verifyServer("https://a.test")).resolves.toEqual(verified);
+    expect(listener.mock.calls[0][0]).toEqual({ domain: "https://a.test", remember: true });
   });
 });

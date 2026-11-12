@@ -24,7 +24,6 @@ import {
   accountSummaries,
   defaultAccountsContext,
 } from "../../../../shared/context/Accounts/AccountsContext.test.data";
-import AddAccountDialog from "../AddAccountDialog/AddAccountDialog";
 import ManageAccountsDialog from "../ManageAccountsDialog/ManageAccountsDialog";
 
 describe("DisplayUserBadgeMenu", () => {
@@ -102,15 +101,31 @@ describe("DisplayUserBadgeMenu", () => {
       await waitFor(() => expect(page.userBadgeMenu).not.toHaveClass("open"));
     });
 
-    it("opens the add account and manage accounts dialogs", () => {
-      const props = defaultProps({ accountsContext: defaultAccountsContext() });
+    it("opens the add account tab for the current server and the manage accounts dialog", async () => {
+      const accountsContext = defaultAccountsContext();
+      const props = defaultProps({ accountsContext });
       page = new DisplayUserBadgeMenuPage(context, props);
       openMenu();
       fireEvent.click(screen.getByRole("button", { name: "Add account" }));
-      expect(props.dialogContext.open).toHaveBeenCalledWith(AddAccountDialog);
+      await waitFor(() => expect(page.userBadgeMenu).not.toHaveClass("open"));
+      expect(accountsContext.openAddAccount).toHaveBeenCalledWith("https://vault.home.example");
+      expect(props.dialogContext.open).not.toHaveBeenCalled();
       openMenu();
       fireEvent.click(screen.getByRole("button", { name: "Manage accounts" }));
       expect(props.dialogContext.open).toHaveBeenCalledWith(ManageAccountsDialog);
+    });
+
+    it("keeps the menu open with the reason when the add account tab cannot be opened", async () => {
+      const accountsContext = defaultAccountsContext({
+        openAddAccount: jest.fn(() => Promise.reject(new Error("Not allowed here."))),
+      });
+      page = new DisplayUserBadgeMenuPage(context, defaultProps({ accountsContext }));
+      openMenu();
+      fireEvent.click(screen.getByRole("button", { name: "Add account" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "The add account page could not be opened. Not allowed here.",
+      );
+      expect(screen.getByRole("button", { name: "Account menu" })).toHaveAttribute("aria-expanded", "true");
     });
 
     it("offers to add an account when only the current one is saved", () => {
