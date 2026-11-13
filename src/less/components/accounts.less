@@ -1,0 +1,414 @@
+/*
+ * Saved accounts: switcher rows, add account launchers and account management.
+ * Shared by the vault (user badge menu and dialogs) and the quick access.
+ */
+
+/* Email over server: the pair that identifies an account. */
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.8rem;
+
+  .account-identity-email {
+    color: var(--Text-and-icons-Main-text);
+    font-size: 1.4rem;
+    .ellipsis();
+  }
+
+  .account-identity-server {
+    color: var(--Text-and-icons-Secondary-text);
+    font-size: 1.2rem;
+    .ellipsis();
+  }
+}
+
+.account-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .4rem;
+  color: var(--Text-and-icons-Secondary-text);
+  font-size: 1.2rem;
+  line-height: 1.6rem;
+  white-space: nowrap;
+
+  svg {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  &.current {
+    color: var(--Text-and-icons-Main-text);
+    font-weight: 600;
+  }
+}
+
+.account-switcher-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  .account-row {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    width: 100%;
+    min-height: 4.8rem;
+    padding: .6rem 1.6rem;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--Text-and-icons-Main-text);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--Sections-Filter-selected);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 .2rem var(--States-Focus);
+    }
+
+    &:disabled {
+      cursor: progress;
+    }
+
+    &.active {
+      cursor: default;
+    }
+  }
+}
+
+.account-switcher-status.error-message,
+.account-switcher-error,
+.add-account-error,
+.manage-accounts-error {
+  color: var(--Field-Error);
+}
+
+.account-switcher-status,
+.account-switcher-error {
+  margin: 0;
+  padding: .8rem 1.6rem;
+  font-size: 1.3rem;
+  line-height: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+
+  svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+}
+
+/* A sign-in waiting for multi-factor authentication: not a saved account yet. */
+.pending-account-notice {
+  padding: 1.2rem;
+  border-radius: var(--Menu-radius, .4rem);
+  background: var(--Alert-Alert-background);
+  color: var(--Text-and-icons-Main-text);
+  font-size: 1.3rem;
+  line-height: 1.8rem;
+  text-align: left;
+
+  p {
+    margin: 0 0 .8rem;
+    overflow-wrap: anywhere;
+  }
+
+  .pending-account-title {
+    font-weight: 600;
+  }
+
+  .pending-account-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .error-message {
+    color: var(--Field-Error);
+  }
+}
+
+/* Vault: account section of the user badge menu. */
+.user.profile .button.open + .dropdown-content {
+  .informations .server {
+    color: var(--Text-and-icons-Secondary-text);
+    font-size: 1.2rem;
+    text-align: center;
+    margin-top: .4rem;
+    .ellipsis();
+  }
+
+  .account-switcher {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    padding: .4rem 0;
+    border-bottom: .1rem solid var(--Workspace-Dividers);
+
+    .pending-account-notice {
+      margin: .4rem 1.6rem .8rem;
+    }
+
+    .account-switcher-title {
+      padding: .8rem 1.6rem .4rem;
+      color: var(--Text-and-icons-Secondary-text);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    /* Narrow menu: the lock icon alone marks a locked account, its label stays for assistive technologies. */
+    .account-state.locked .account-state-label {
+      .visually-hidden();
+    }
+
+    .account-switcher-list {
+      max-height: 24rem;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--Workspace-Elevator) transparent;
+    }
+
+    .account-switcher-action {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      min-height: 4rem;
+      padding: .8rem 1.6rem;
+      color: var(--Text-and-icons-Main-text);
+
+      svg {
+        width: 1.8rem;
+        height: 1.8rem;
+      }
+
+      &:hover {
+        background: var(--Sections-Filter-selected);
+        text-decoration: none;
+      }
+    }
+  }
+}
+
+/* Account management list. */
+.manage-accounts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  .manage-account-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .8rem 1.6rem;
+    padding: 1.2rem 0;
+    border-bottom: .1rem solid var(--Workspace-Dividers);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &.confirming {
+      flex-direction: column;
+      align-items: stretch;
+
+      .manage-account-summary {
+        flex: 0 0 auto;
+      }
+    }
+  }
+
+  .manage-account-summary {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    flex: 1 1 18rem;
+    min-width: 0;
+  }
+
+  .manage-account-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .8rem;
+    flex: 0 0 auto;
+
+    .button {
+      min-height: 3.2rem;
+    }
+  }
+
+  .manage-account-confirm {
+    p {
+      margin: 0 0 .8rem;
+      line-height: 2rem;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+.manage-accounts-empty {
+  color: var(--Text-and-icons-Secondary-text);
+}
+
+.manage-accounts-error {
+  margin-top: .8rem;
+}
+
+.manage-accounts-dialog .submit-wrapper .button + .button {
+  margin-left: .8rem;
+}
+
+.manage-accounts-dialog .submit-wrapper .button svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-right: .4rem;
+  vertical-align: middle;
+}
+
+/* Quick access */
+.quickaccess {
+  .quickaccess-header .quickaccess-account-button {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 20rem;
+    min-height: 4rem;
+    margin-right: .8rem;
+    padding: .4rem .8rem;
+    text-decoration: none;
+
+    .account-identity {
+      line-height: 1.5rem;
+
+      .account-identity-email {
+        font-size: 1.2rem;
+      }
+
+      .account-identity-server {
+        font-size: 1.1rem;
+      }
+    }
+
+    svg {
+      flex: 0 0 auto;
+      width: 1.2rem;
+      height: 1.2rem;
+    }
+  }
+
+  .accounts-page {
+    .list-section {
+      max-height: 32rem;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--Workspace-Elevator) transparent;
+    }
+
+    .account-switcher-list li {
+      box-shadow: inset 0 -.1rem 0 var(--Workspace-Dividers);
+    }
+
+    .account-server-group {
+      padding: 1.2rem 0 .8rem;
+      box-shadow: inset 0 -.1rem 0 var(--Workspace-Dividers);
+
+      .account-switcher-list li:last-child {
+        box-shadow: none;
+      }
+    }
+
+    .account-server-heading {
+      margin: 0;
+      padding: 0 1.6rem .4rem;
+      color: var(--Text-and-icons-Secondary-text);
+      font-size: 1.2rem;
+      font-weight: 600;
+      line-height: 1.6rem;
+      overflow-wrap: anywhere;
+    }
+
+    .account-server-empty {
+      margin: 0;
+      padding: .4rem 1.6rem;
+      color: var(--Text-and-icons-Secondary-text);
+      font-size: 1.3rem;
+    }
+
+    .account-server-add {
+      display: inline-block;
+      margin: .4rem 1.6rem .8rem;
+      font-size: 1.3rem;
+    }
+
+    .add-account-launch-error {
+      margin: .4rem 1.6rem;
+      overflow-wrap: anywhere;
+    }
+
+    .accounts-empty {
+      padding: 1.6rem;
+
+      p {
+        margin: 0 0 .8rem;
+        color: var(--Text-and-icons-Secondary-text);
+        line-height: 2rem;
+      }
+
+      .accounts-empty-title {
+        color: var(--Text-and-icons-Main-text);
+        font-weight: 600;
+      }
+    }
+
+    .accounts-page-actions {
+      gap: .8rem;
+
+      .button {
+        white-space: normal;
+      }
+    }
+  }
+
+  .accounts-page .back-link h1.primary-action-title {
+    margin: 0;
+    padding: 1.6rem;
+    font-size: 1.5rem;
+  }
+
+  .accounts-page .pending-account-notice {
+    margin: 0 1.6rem 1.2rem;
+  }
+
+  .manage-accounts-page {
+    .back-link h1.primary-action-title {
+      margin: 0;
+      padding: 1.6rem;
+      font-size: 1.5rem;
+    }
+
+    .manage-accounts-list,
+    .manage-accounts-empty {
+      padding: 0 1.6rem;
+    }
+
+    .submit-wrapper {
+      flex-direction: row;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 1.6rem;
+    }
+  }
+}

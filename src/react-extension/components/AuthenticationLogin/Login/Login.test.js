@@ -21,6 +21,7 @@ import { defaultProps } from "./Login.test.data";
 import UserActiveSessionEntity from "../../../../shared/models/entity/session/userActiveSessionEntity";
 import { offlineUserActiveSessionDto } from "../../../../shared/models/entity/session/userActiveSessionEntity.test.data";
 import { act } from "react";
+import { waitFor } from "@testing-library/react";
 
 beforeEach(() => {
   jest.resetModules();
@@ -253,5 +254,56 @@ describe("Login", () => {
 
       expect(props.switchToSsoLogin).toHaveBeenCalledTimes(1);
     });
+  });
+
+  describe("As AN adding an account in the extension tab", () => {
+    it("unlocks the new account with its chosen token, without remember-me or a dead help link", async () => {
+      expect.assertions(6);
+      const props = defaultProps({
+        displayAs: LoginVariations.ADD_ACCOUNT,
+        canRememberMe: false,
+        userSettings: null,
+        onSecondaryActionClick: undefined,
+        account: {
+          username: "ada@a.test",
+          domain: "https://a.test",
+          first_name: "",
+          last_name: "",
+          security_token: { code: "ADA", color: "#ff5722", textcolor: "#ffffff" },
+        },
+      });
+      const rememberMe = jest.fn(async () => false);
+      props.context.port.addRequestListener("passbolt.remember-me.get-user-latest-choice", rememberMe);
+      let page;
+      await act(() => (page = new LoginPage(props)));
+
+      expect(page.signInButton.textContent).toBe("Add account");
+      expect(page.secondaryActionLink).toBeNull();
+      expect(document.querySelector(".login-user-name")).toBeNull();
+      expect(rememberMe).not.toHaveBeenCalled();
+      await page.fillPassphrase("secret");
+      await page.signIn();
+      expect(props.onCheckPassphrase).toHaveBeenCalledWith("secret");
+      expect(props.onSignIn).toHaveBeenCalledWith("secret", false);
+    });
+  });
+
+  it("does not sign in from a form left while its passphrase was checked", async () => {
+    let releaseCheck;
+    const props = defaultProps({
+      displayAs: LoginVariations.ADD_ACCOUNT,
+      canRememberMe: false,
+      onCheckPassphrase: jest.fn(() => new Promise((resolve) => (releaseCheck = resolve))),
+    });
+    let page;
+    await act(() => (page = new LoginPage(props)));
+    await page.fillPassphrase("secret");
+    page.signIn();
+    await waitFor(() => expect(props.onCheckPassphrase).toHaveBeenCalledWith("secret"));
+    page._page.unmount();
+    await act(async () => releaseCheck());
+    // Let the abandoned submit run to its end.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(props.onSignIn).not.toHaveBeenCalled();
   });
 });

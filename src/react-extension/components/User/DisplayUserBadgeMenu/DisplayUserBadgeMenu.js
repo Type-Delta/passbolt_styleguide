@@ -26,6 +26,13 @@ import CloseSVG from "../../../../img/svg/close.svg";
 import AttentionSVG from "../../../../img/svg/attention.svg";
 import { withDialog } from "../../../contexts/DialogContext";
 import NotifyError from "../../Common/Error/NotifyError/NotifyError";
+import { getServerLabel, withAccounts } from "../../../../shared/context/Accounts/AccountsContext";
+import AccountSwitcherList from "../../../../shared/components/Accounts/AccountSwitcherList/AccountSwitcherList";
+import PendingAccountNotice from "../../../../shared/components/Accounts/PendingAccountNotice/PendingAccountNotice";
+import OpenAddAccountButton from "../../../../shared/components/Accounts/OpenAddAccountButton/OpenAddAccountButton";
+import ManageAccountsDialog from "../ManageAccountsDialog/ManageAccountsDialog";
+import UserAddSVG from "../../../../img/svg/user_add.svg";
+import UserCogSVG from "../../../../img/svg/user_cog.svg";
 
 class DisplayUserBadgeMenu extends Component {
   /**
@@ -60,6 +67,10 @@ class DisplayUserBadgeMenu extends Component {
     this.handleToggleMenuClick = this.handleToggleMenuClick.bind(this);
     this.handleProfileClick = this.handleProfileClick.bind(this);
     this.handleSignOutClick = this.handleSignOutClick.bind(this);
+    this.handleManageAccountsClick = this.handleManageAccountsClick.bind(this);
+    this.handleAccountSwitched = this.handleAccountSwitched.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.closeUserBadgeMenu = this.closeUserBadgeMenu.bind(this);
   }
 
   componentDidMount() {
@@ -86,6 +97,7 @@ class DisplayUserBadgeMenu extends Component {
    */
   createRefs() {
     this.userBadgeMenuRef = React.createRef();
+    this.toggleButtonRef = React.createRef();
   }
 
   /**
@@ -182,6 +194,95 @@ class DisplayUserBadgeMenu extends Component {
   }
 
   /**
+   * Close the open menu with Escape and give the focus back to its toggle.
+   * @param {KeyboardEvent} event
+   */
+  handleKeyDown(event) {
+    if (event.key === "Escape" && this.state.open) {
+      event.stopPropagation();
+      this.closeUserBadgeMenu();
+      this.toggleButtonRef.current?.focus();
+    }
+  }
+
+  handleManageAccountsClick() {
+    this.closeUserBadgeMenu();
+    this.props.dialogContext.open(ManageAccountsDialog);
+  }
+
+  /**
+   * The extension navigates to the selected account (or its unlock step); only the menu is left to close.
+   */
+  handleAccountSwitched() {
+    this.closeUserBadgeMenu();
+  }
+
+  /**
+   * Account switching is only offered where the extension provides the saved accounts.
+   * @returns {boolean}
+   */
+  get hasAccountSwitcher() {
+    return Boolean(this.props.accountsContext?.isAvailable);
+  }
+
+  get activeAccount() {
+    const { accounts, activeAccountId } = this.props.accountsContext;
+    return accounts.find((account) => account.id === activeAccountId);
+  }
+
+  renderAccountSwitcher() {
+    const { accounts, activeAccountId, isLoading, loadError, refresh, switchAccount, pending, cancelPending } =
+      this.props.accountsContext;
+    return (
+      <div className="account-switcher">
+        {pending && <PendingAccountNotice pending={pending} onCancel={cancelPending} />}
+        {isLoading && accounts.length === 0 && (
+          <p className="account-switcher-status" role="status">
+            <Trans>Loading accounts…</Trans>
+          </p>
+        )}
+        {loadError && (
+          <p className="account-switcher-status error-message" role="alert">
+            <Trans>Saved accounts could not be loaded.</Trans>{" "}
+            <button type="button" className="link" onClick={refresh}>
+              <Trans>Retry</Trans>
+            </button>
+          </p>
+        )}
+        {accounts.some((account) => account.id !== activeAccountId) && (
+          <>
+            <span className="account-switcher-title" id="account-switcher-title">
+              <Trans>Switch to</Trans>
+            </span>
+            <AccountSwitcherList
+              accounts={accounts}
+              activeAccountId={activeAccountId}
+              label={this.props.t("Switch to")}
+              onSwitch={switchAccount}
+              onSwitched={this.handleAccountSwitched}
+            />
+          </>
+        )}
+        <OpenAddAccountButton
+          onOpen={this.props.accountsContext.openAddAccount}
+          className="no-border account-switcher-action"
+          domain={this.activeAccount?.domain}
+          onOpened={this.closeUserBadgeMenu}
+        >
+          <UserAddSVG aria-hidden="true" />
+          <Trans>Add account</Trans>
+        </OpenAddAccountButton>
+        {accounts.length > 0 && (
+          <button type="button" className="no-border account-switcher-action" onClick={this.handleManageAccountsClick}>
+            <UserCogSVG aria-hidden="true" />
+            <Trans>Manage accounts</Trans>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  /**
    * Returns true if the account recovery needs to be configured.
    * @return {boolean}
    */
@@ -198,11 +299,14 @@ class DisplayUserBadgeMenu extends Component {
   render() {
     return (
       <div className="profile-wrapper">
-        <div className="user profile dropdown" ref={this.userBadgeMenuRef}>
+        <div className="user profile dropdown" ref={this.userBadgeMenuRef} onKeyDown={this.handleKeyDown}>
           <button
             type="button"
             className={`avatar-with-name button avatar-button ${this.state.open ? "open" : ""}`}
             onClick={this.handleToggleMenuClick}
+            aria-expanded={this.state.open}
+            aria-label={this.props.t("Account menu")}
+            ref={this.toggleButtonRef}
           >
             <UserAvatar
               user={this.props.user}
@@ -224,13 +328,17 @@ class DisplayUserBadgeMenu extends Component {
               <div className="informations">
                 <div className="name">{this.getUserFullName()}</div>
                 <div className="email">{this.getUserUsername()}</div>
+                {this.hasAccountSwitcher && this.activeAccount && (
+                  <div className="server">{getServerLabel(this.activeAccount.domain)}</div>
+                )}
               </div>
               <div className="manage-account">
                 <button className="button primary" onClick={this.handleProfileClick}>
-                  <ProfileIcon /> <Trans>Manage account</Trans>
+                  <ProfileIcon /> <Trans>Account Settings</Trans>
                   {this.attentionRequired && <AttentionSVG className="attention-required" />}
                 </button>
               </div>
+              {this.hasAccountSwitcher && this.renderAccountSwitcher()}
               <button type="button" className="no-border sign-out" onClick={this.handleSignOutClick}>
                 <LogoutIcon />
                 <Trans>Sign out</Trans>
@@ -252,10 +360,14 @@ DisplayUserBadgeMenu.propTypes = {
   user: PropTypes.object,
   rbacContext: PropTypes.any, // The role based access control context
   dialogContext: PropTypes.object, // the dialog context prop
+  accountsContext: PropTypes.object, // The saved accounts context, available in the extension app only
+  t: PropTypes.func, // The translation function
 };
 
 export default withAppContext(
   withRbac(
-    withNavigationContext(withDialog(withAccountRecovery(withMfa(withTranslation("common")(DisplayUserBadgeMenu))))),
+    withNavigationContext(
+      withDialog(withAccountRecovery(withMfa(withAccounts(withTranslation("common")(DisplayUserBadgeMenu))))),
+    ),
   ),
 );

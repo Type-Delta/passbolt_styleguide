@@ -353,6 +353,62 @@ describe("InFormCallToActionField", () => {
     });
   });
 
+  describe("InFormCallToActionField::blur", () => {
+    it("allows iframe focus to settle before removing the call-to-action", async () => {
+      jest.useFakeTimers();
+      const callToActionField = buildCallToActionField();
+      callToActionField.removeIframe = jest.fn();
+      callToActionField.createCallToActionIframe = jest.fn().mockResolvedValue(document.createElement("iframe"));
+      callToActionField.handleCallToActionClicked = jest.fn();
+      try {
+        callToActionField.field.focus();
+        await Promise.resolve();
+        const otherField = document.createElement("input");
+        document.body.appendChild(otherField);
+        otherField.focus();
+
+        expect(callToActionField.removeIframe).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(CALL_TO_ACTION_REMOVAL_GRACE_DELAY);
+        expect(callToActionField.removeIframe).toHaveBeenCalledTimes(1);
+      } finally {
+        callToActionField.destroy();
+        jest.useRealTimers();
+      }
+    });
+
+    it("cancels the blur removal when the click watcher refocuses the field", async () => {
+      jest.useFakeTimers();
+      const callToActionField = buildCallToActionField();
+      callToActionField.removeIframe = jest.fn();
+      callToActionField.createCallToActionIframe = jest.fn().mockResolvedValue(document.createElement("iframe"));
+      callToActionField.handleCallToActionClicked = jest.fn();
+      try {
+        callToActionField.field.focus();
+        await Promise.resolve();
+        const otherField = document.createElement("input");
+        document.body.appendChild(otherField);
+        otherField.focus();
+        callToActionField.field.focus();
+        await Promise.resolve();
+
+        jest.advanceTimersByTime(CALL_TO_ACTION_REMOVAL_GRACE_DELAY);
+        expect(callToActionField.removeIframe).not.toHaveBeenCalled();
+      } finally {
+        callToActionField.destroy();
+        jest.useRealTimers();
+      }
+    });
+
+    it("removes the scheduled blur listener on destroy", () => {
+      const callToActionField = buildCallToActionField();
+      const removeListener = jest.spyOn(callToActionField.field, "removeEventListener");
+
+      callToActionField.destroy();
+
+      expect(removeListener).toHaveBeenCalledWith("blur", callToActionField.scheduleRemoval);
+    });
+  });
+
   describe("InFormCallToActionField::removeIframe", () => {
     it("should remove the iframe and disconnect its port", () => {
       expect.assertions(2);

@@ -27,6 +27,7 @@ import UserActiveSessionEntity from "../../../../shared/models/entity/session/us
 export const LoginVariations = {
   SIGN_IN: "Sign in",
   ACCOUNT_RECOVERY: "Account recovery",
+  ADD_ACCOUNT: "Add account",
 };
 
 /**
@@ -67,7 +68,9 @@ class Login extends Component {
    */
   componentDidMount() {
     this.focusOnPassphrase();
-    this.initDefaultRememberMeChoice();
+    if (this.props.canRememberMe) {
+      this.initDefaultRememberMeChoice();
+    }
   }
 
   /**
@@ -151,11 +154,19 @@ class Login extends Component {
 
     this.setState({ processing: true });
     if (await this.checkPassphrase()) {
+      // A form left while its passphrase was checked must not sign in.
+      if (this.isUnmounted) {
+        return;
+      }
       if (this.props.activeSession?.isAuthenticated && this.props.activeSession?.isSessionOffline) {
         await this.props.context.port.request("passbolt.auth.offline-logout");
       }
       await this.login();
     }
+  }
+
+  componentWillUnmount() {
+    this.isUnmounted = true;
   }
 
   /**
@@ -302,7 +313,7 @@ class Login extends Component {
       <div className="login">
         <div className="login-user">
           <UserAvatar user={this.props.account?.user} baseUrl={this.trustedDomain} className="big avatar user-avatar" />
-          <p className="login-user-name">{this.fullname}</p>
+          {this.fullname.trim() && <p className="login-user-name">{this.fullname}</p>}
           <p className="login-user-email">{this.username}</p>
         </div>
         <form acceptCharset="utf-8" onSubmit={this.handleSubmit} className="enter-passphrase">
@@ -372,6 +383,7 @@ class Login extends Component {
                 {
                   [LoginVariations.SIGN_IN]: <Trans>Sign in</Trans>,
                   [LoginVariations.ACCOUNT_RECOVERY]: <Trans>Complete recovery</Trans>,
+                  [LoginVariations.ADD_ACCOUNT]: <Trans>Add account</Trans>,
                 }[this.props.displayAs]
               }
             </button>
@@ -380,7 +392,7 @@ class Login extends Component {
                 <Trans>Sign in with Single Sign-On.</Trans>
               </button>
             )}
-            {!this.props.isSsoAvailable && !this.props.isDesktop && (
+            {!this.props.isSsoAvailable && !this.props.isDesktop && this.props.onSecondaryActionClick && (
               <button type="button" className="link" onClick={this.props.onSecondaryActionClick}>
                 <Trans>Help, I lost my passphrase.</Trans>
               </button>
@@ -397,7 +409,7 @@ Login.defaultProps = {
 };
 
 Login.propTypes = {
-  displayAs: PropTypes.oneOf([LoginVariations.SIGN_IN, LoginVariations.ACCOUNT_RECOVERY]), // Defines how the form should be displayed and behaves
+  displayAs: PropTypes.oneOf([LoginVariations.SIGN_IN, LoginVariations.ACCOUNT_RECOVERY, LoginVariations.ADD_ACCOUNT]), // Defines how the form should be displayed and behaves
   isSsoAvailable: PropTypes.bool, // true if SSO is available
   isDesktop: PropTypes.bool, // true if desktop is available
   context: PropTypes.any, // The application context

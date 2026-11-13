@@ -24,6 +24,7 @@ import SpinnerSVG from "../../../../img/svg/spinner.svg";
 export const ImportGpgKeyVariations = {
   SETUP: "Setup",
   RECOVER: "Recover",
+  ADD_ACCOUNT: "Add account",
 };
 
 /**
@@ -47,7 +48,7 @@ class ImportGpgKey extends Component {
   get defaultState() {
     return {
       selectedFile: null, // the file to import
-      privateKey: "", // The gpg private key
+      privateKey: this.props.defaultPrivateKey || "", // The gpg private key
       processing: false, // True if one's processing passphrase
       hasBeenValidated: false, // true if the form has already validated once
       errors: {
@@ -119,6 +120,10 @@ class ImportGpgKey extends Component {
     }
     this.setState({ hasBeenValidated: true });
     const errors = await this.validate();
+    // A step left while its key was validated must not complete.
+    if (this.isUnmounted) {
+      return;
+    }
 
     if (this.isValid(errors)) {
       this.setState({ processing: true });
@@ -187,7 +192,18 @@ class ImportGpgKey extends Component {
    * Verify and save the private gpg key
    */
   async save() {
+    if (this.isUnmounted) {
+      return;
+    }
     await this.props.onComplete(this.state.privateKey).catch(this.onSaveFailure.bind(this));
+    // Setup and recover unmount this step on success; a parent that keeps it (e.g. on a field error) gets it back.
+    if (!this.isUnmounted) {
+      this.setState({ processing: false });
+    }
+  }
+
+  componentWillUnmount() {
+    this.isUnmounted = true;
   }
 
   /**
@@ -268,10 +284,14 @@ class ImportGpgKey extends Component {
               [ImportGpgKeyVariations.RECOVER]: (
                 <Trans>Welcome back, please enter your private key to begin the recovery process.</Trans>
               ),
+              [ImportGpgKeyVariations.ADD_ACCOUNT]: (
+                <Trans>Enter your email and the private key of your account.</Trans>
+              ),
             }[this.props.displayAs]
           }
         </h1>
-        <form acceptCharset="utf-8" onSubmit={this.handleSubmit}>
+        <form acceptCharset="utf-8" onSubmit={this.handleSubmit} noValidate={Boolean(this.props.children)}>
+          {this.props.children}
           <div
             className={`input textarea required openpgp-key ${this.hasErrors ? "error" : ""} ${!this.areActionsAllowed ? "disabled" : ""}`}
           >
@@ -279,6 +299,7 @@ class ImportGpgKey extends Component {
               <Trans>Private key</Trans>
             </label>
             <textarea
+              id="private-key"
               name="private-key"
               aria-required={true}
               ref={this.privateKeyInputRef}
@@ -366,10 +387,16 @@ ImportGpgKey.defaultProps = {
 ImportGpgKey.propTypes = {
   context: PropTypes.object, // The application context
   onComplete: PropTypes.func.isRequired, // The callback to trigger when the user wants to import its gpg key
-  displayAs: PropTypes.oneOf([ImportGpgKeyVariations.SETUP, ImportGpgKeyVariations.RECOVER]), // Defines how the form should be displayed and behaves
+  displayAs: PropTypes.oneOf([
+    ImportGpgKeyVariations.SETUP,
+    ImportGpgKeyVariations.RECOVER,
+    ImportGpgKeyVariations.ADD_ACCOUNT,
+  ]), // Defines how the form should be displayed and behaves
   onSecondaryActionClick: PropTypes.func, // Callback to trigger when the user clicks on the secondary action link.
   t: PropTypes.func, // The translation function
   validatePrivateGpgKey: PropTypes.func, // The callback to check the validity of the gpg key
   hasKeyExpirationDate: PropTypes.func, // The callback to check if the key has an expiration date
+  defaultPrivateKey: PropTypes.string, // The key to show again, e.g. when going back to this step
+  children: PropTypes.node, // Fields rendered before the key, submitted with the same form
 };
 export default withAppContext(withTranslation("common")(ImportGpgKey));

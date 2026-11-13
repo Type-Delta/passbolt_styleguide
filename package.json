@@ -117,6 +117,8 @@
     "dev:storybook:build": "NODE_OPTIONS=--max_old_space_size=2048 storybook build",
     "dev:storybook:install": "playwright install chromium",
     "dev:storybook:start": "STORYBOOK_DEV=true storybook dev -p 6006 --no-open",
-    "watch": "NODE_ENV=development webpack --watch"
-  }
+    "watch": "NODE_ENV=development webpack --watch",
+    "pack:fork": "node ci-scripts/build-ui-artifact.mjs"
+  },
+  "packageManager": "npm@10.9.2"
 }

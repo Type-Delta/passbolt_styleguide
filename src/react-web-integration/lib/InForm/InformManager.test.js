@@ -2616,4 +2616,115 @@ describe("InformManager", () => {
       expect(informManager.menuIframe.style.top).toBe("0px");
     });
   });
+
+  describe("InFormManager::handleApplicationOverlaidEvent", () => {
+    const OVERLAID_EVENT = "passbolt.web-integration.is-application-overlaid";
+    let application;
+    let requestCount = 0;
+
+    /**
+     * Ask the real request handler whether an application is overlaid, as the background does.
+     * @param {string} applicationId
+     * @returns {Promise<boolean>} The SUCCESS answer
+     */
+    const requestOverlaid = async (applicationId) => {
+      const requestId = `overlay-request-${++requestCount}`;
+      jest.spyOn(port, "emit");
+      await port.emitListener[OVERLAID_EVENT](requestId, applicationId);
+      const answer = port.emit.mock.calls.find(([emittedId]) => emittedId === requestId);
+      expect(answer.slice(1, 2)).toEqual(["SUCCESS"]);
+      return answer[2];
+    };
+
+    beforeEach(async () => {
+      document.body.innerHTML = "<div id='page'></div>";
+      await act(async () => new InformManagerPage());
+      // The manager keeps its shadow root across tests: one distinct iframe per test.
+      application = {
+        id: "menu-id",
+        iframeId: `menu-iframe-${++requestCount}`,
+        removeIframe: jest.fn(),
+        destroy: jest.fn(),
+      };
+      const iframe = Document.prototype.createElement.call(document, "iframe");
+      iframe.id = application.iframeId;
+      InFormManager.shadowRoot.appendChild(iframe);
+      InFormManager.menuField = application;
+      // jsdom has no hit testing: report the extension host, i.e. nothing above the application.
+      document.elementFromPoint = jest.fn(() => InFormManager.host);
+    });
+
+    afterEach(() => {
+      delete document.elementFromPoint;
+    });
+
+    it("As LU an intact menu is not reported overlaid", async () => {
+      expect.assertions(3);
+      await expect(requestOverlaid(application.id)).resolves.toBe(false);
+      expect(application.removeIframe).not.toHaveBeenCalled();
+    });
+
+    it("As LU a menu covered by a page element is reported overlaid and removed", async () => {
+      expect.assertions(3);
+      const overlay = document.getElementById("page");
+      document.elementFromPoint.mockImplementation(() => overlay);
+      await expect(requestOverlaid(application.id)).resolves.toBe(true);
+      expect(application.removeIframe).toHaveBeenCalledTimes(1);
+    });
+
+    it("As LU a menu whose iframe is missing is blocked, the request settles without throwing", async () => {
+      expect.assertions(3);
+      InFormManager.shadowRoot.getElementById(application.iframeId).remove();
+      await expect(requestOverlaid(application.id)).resolves.toBe(true);
+      expect(document.elementFromPoint).not.toHaveBeenCalled();
+    });
+
+    it("As LU an unknown application is blocked, the request settles without throwing", async () => {
+      expect.assertions(3);
+      await expect(requestOverlaid("unknown-application-id")).resolves.toBe(true);
+      expect(application.removeIframe).not.toHaveBeenCalled();
+    });
+
+    it("As LU the page pointer-events values and priorities are restored after the hit test", async () => {
+      expect.assertions(5);
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        "<style>.no-pointer { pointer-events: none; }</style><div id='inline'></div><div id='styled' class='no-pointer'></div>",
+      );
+      const inline = document.getElementById("inline");
+      inline.style.setProperty("pointer-events", "none", "important");
+      const styled = document.getElementById("styled");
+      const duringHitTest = new Set();
+      document.elementFromPoint.mockImplementation(() => {
+        duringHitTest.add(`${inline.style.pointerEvents}/${styled.style.pointerEvents}`);
+        return InFormManager.host;
+      });
+
+      await expect(requestOverlaid(application.id)).resolves.toBe(false);
+      // During the hit test both are forced to receive pointer events.
+      expect([...duringHitTest]).toEqual(["auto/auto"]);
+      expect([
+        inline.style.getPropertyValue("pointer-events"),
+        inline.style.getPropertyPriority("pointer-events"),
+      ]).toEqual(["none", "important"]);
+      // No inline value before: none after, the stylesheet applies again.
+      expect(styled.style.getPropertyValue("pointer-events")).toBe("");
+    });
+
+    it("As LU the page pointer-events are restored even when the hit test throws", () => {
+      expect.assertions(2);
+      document.body.insertAdjacentHTML("beforeend", "<div id='inline'></div>");
+      const inline = document.getElementById("inline");
+      inline.style.setProperty("pointer-events", "none", "important");
+      document.elementFromPoint.mockImplementation(() => {
+        throw new Error("hit test failed");
+      });
+
+      expect(() => InFormManager.isApplicationOverlaid(application)).toThrow("hit test failed");
+      expect([
+        inline.style.getPropertyValue("pointer-events"),
+        inline.style.getPropertyPriority("pointer-events"),
+      ]).toEqual(["none", "important"]);
+    });
+  });
 });

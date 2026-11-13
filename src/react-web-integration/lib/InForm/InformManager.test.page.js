@@ -17,6 +17,7 @@
  */
 
 import InFormManager from "./InFormManager";
+import { CALL_TO_ACTION_REMOVAL_GRACE_DELAY } from "./InFormCallToActionField";
 import { fireEvent, waitFor } from "@testing-library/react";
 
 export default class InformManagerPage {
@@ -162,28 +163,35 @@ export default class InformManagerPage {
     await waitFor(() => {});
   }
 
+  /**
+   * Blur an element and let the focus change settle as it does in a browser: the call-to-action is only removed
+   * once its removal grace period elapsed.
+   * @param {HTMLElement} element
+   */
+  async blur(element) {
+    fireEvent.blur(element);
+    await new Promise((resolve) => setTimeout(resolve, CALL_TO_ACTION_REMOVAL_GRACE_DELAY));
+    await waitFor(() => {});
+  }
+
   /** Blur on the username element */
   async blurOnUsername() {
-    fireEvent.blur(this.username);
-    await waitFor(() => {});
+    await this.blur(this.username);
   }
 
   /** Blur on the username iframe element */
   async blurOnUsernameIframe() {
-    fireEvent.blur(this.usernameIframe);
-    await waitFor(() => {});
+    await this.blur(this.usernameIframe);
   }
 
   /** Blur on the password element */
   async blurOnPassword() {
-    fireEvent.blur(this.password);
-    await waitFor(() => {});
+    await this.blur(this.password);
   }
 
   /** Blur on the password iframe element */
   async blurOnPasswordIframe() {
-    fireEvent.blur(this.passwordIframe);
-    await waitFor(() => {});
+    await this.blur(this.passwordIframe);
   }
 
   /** Focus on the username element */
@@ -236,8 +244,7 @@ export default class InformManagerPage {
 
   /** Blur on the otp element */
   async blurOnOtp() {
-    fireEvent.blur(this.otp);
-    await waitFor(() => {});
+    await this.blur(this.otp);
   }
 
   /** Mouse over on the otp element */

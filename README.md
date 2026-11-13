@@ -120,6 +120,17 @@ In some passbolt projects an additional grunt task help you manage the deploymen
 grunt styleguide-update
 ```
 
+Building a pinned fork artifact
+=============================
+
+Extensions and server frontend packaging consume this repository through a versioned npm tarball rather than a local symlink:
+
+```sh
+npm run pack:fork -- --out dist --require-clean --require-pinned-toolchain
+```
+
+The command rebuilds the styleguide, runs `npm pack`, and writes `passbolt-styleguide-artifact.json` with the source commit, tarball SHA-256, npm integrity, and build tool versions. The release toolchain is Node 22.14.0 with npm 10.9.2. `SOURCE_DATE_EPOCH` is taken from the source commit so generated LESS metadata does not change the artifact on a later day.
+
 How to use Storybook?
 =============================
 

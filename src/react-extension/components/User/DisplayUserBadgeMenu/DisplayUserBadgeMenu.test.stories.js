@@ -1,6 +1,11 @@
 import React from "react";
 import DisplayUserBadgeMenu from "./DisplayUserBadgeMenu";
 import { defaultProps } from "./DisplayUserBadgeMenu.test.data";
+import {
+  accountSummaries,
+  defaultAccountsContext,
+} from "../../../../shared/context/Accounts/AccountsContext.test.data";
+import { openAccountMenu } from "../../../../shared/context/Accounts/AccountsStories.test.data";
 
 export default {
   title: "Components/User/DisplayUserBadgeMenu",
@@ -52,4 +57,19 @@ const propsWithUserAvatar = {
 
 export const UserAvatarBadgeMenu = {
   args: defaultProps(propsWithUserAvatar),
+};
+
+const alex = { user: { username: "alex@home.example", profile: { first_name: "Alex", last_name: "Moreau" } } };
+
+export const SavedAccounts = {
+  args: defaultProps({ ...alex, accountsContext: defaultAccountsContext() }),
+  play: openAccountMenu,
+};
+
+export const SingleSavedAccount = {
+  args: defaultProps({
+    ...alex,
+    accountsContext: defaultAccountsContext({ accounts: accountSummaries().slice(0, 1) }),
+  }),
+  play: openAccountMenu,
 };

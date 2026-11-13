@@ -900,7 +900,7 @@ class InFormManager {
       const isOverlay = this.isApplicationOverlaid(application);
       await port.emit(requestId, "SUCCESS", isOverlay);
       if (isOverlay) {
-        application.removeIframe();
+        application?.removeIframe();
       }
     });
   }
@@ -911,17 +911,34 @@ class InFormManager {
    * @return {boolean}
    */
   isApplicationOverlaid(application) {
-    const iframe = this.shadowRoot.getElementById(application.iframeId);
-    // Get all elements having pointer-event none
-    const pointerEventNoneElements = this.elementsWithPointerEventNone;
-    // Set pointer-event to auto to enable the detection of an overlay on application
-    pointerEventNoneElements.forEach((pointerEl) => pointerEl.style.setProperty("pointer-events", "auto", "important"));
-    const points = DomUtils.generateUniquePointsInElement(iframe);
-    // Elements with pointer-events set to none will be ignored, and the element below it will be returned.
-    const elements = points.map((point) => document.elementFromPoint(point.x, point.y));
-    // Set back pointer-event to none
-    pointerEventNoneElements.forEach((pointerEl) => (pointerEl.style.pointerEvents = "none"));
-    return elements.some((element) => element !== this.host);
+    const iframe = application && this.shadowRoot.getElementById(application.iframeId);
+    // An unknown application or a missing iframe cannot be proven clear: block.
+    if (!iframe) {
+      return true;
+    }
+    // Get all elements having pointer-event none, and their inline value to restore
+    const pointerEventNoneElements = this.elementsWithPointerEventNone.map((element) => ({
+      element,
+      value: element.style.getPropertyValue("pointer-events"),
+      priority: element.style.getPropertyPriority("pointer-events"),
+    }));
+    try {
+      // Set pointer-event to auto to enable the detection of an overlay on application
+      pointerEventNoneElements.forEach(({ element }) =>
+        element.style.setProperty("pointer-events", "auto", "important"),
+      );
+      const points = DomUtils.generateUniquePointsInElement(iframe);
+      // Elements with pointer-events set to none will be ignored, and the element below it will be returned.
+      const elements = points.map((point) => document.elementFromPoint(point.x, point.y));
+      return elements.some((element) => element !== this.host);
+    } finally {
+      // Restore the inline pointer-events exactly, or remove it when there was none
+      pointerEventNoneElements.forEach(({ element, value, priority }) =>
+        value
+          ? element.style.setProperty("pointer-events", value, priority)
+          : element.style.removeProperty("pointer-events"),
+      );
+    }
   }
 
   /**
