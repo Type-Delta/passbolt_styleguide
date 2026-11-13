@@ -19,7 +19,7 @@ import CaretLeftSVG from "../../../img/svg/caret_left.svg";
 import CloseSVG from "../../../img/svg/close.svg";
 import { withMetadataKeysSettingsLocalStorage } from "../../../shared/context/MetadataKeysSettingsLocalStorageContext/MetadataKeysSettingsLocalStorageContext";
 import MetadataKeysSettingsEntity from "../../../shared/models/entity/metadata/metadataKeysSettingsEntity";
-import { withActiveSessionSessionStorage } from "../../../shared/context/ActiveSession/ActiveSessionSessionStorageContext";
+import { withActiveSessionLocalStorage } from "../../../shared/context/ActiveSession/ActiveSessionLocalStorageContext";
 import UserActiveSessionEntity from "../../../shared/models/entity/session/userActiveSessionEntity";
 
 const BROWSED_RESOURCES_LIMIT = 500;
@@ -265,7 +265,7 @@ FilterResourcesByRecentlyModifiedPage.propTypes = {
   t: PropTypes.func, // The translation function
 };
 
-export default withActiveSessionSessionStorage(
+export default withActiveSessionLocalStorage(
   withAppContext(
     withRouter(
       withResourceTypesLocalStorage(

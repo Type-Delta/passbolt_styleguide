@@ -19,7 +19,7 @@ import { MfaProviders } from "./MfaEnumeration";
 describe("MfaDTO model", () => {
   describe("MfaDTO::constructor", () => {
     it("should init dto with model", () => {
-      const dto = new MfaDTO({ ...mockModel, duoVerifySubscriber: true });
+      const dto = new MfaDTO(mockModel);
 
       expect.assertions(4);
 
@@ -28,7 +28,6 @@ describe("MfaDTO model", () => {
         apiHostName: "api-123456af.duosecurity.com",
         clientId: "PAGI605APMFKP8YSME6T",
         clientSecret: "PACNkhAAlVLH0m8d3efssULkizlEtunMhIsOTCLT",
-        verifySubscriber: true,
       });
       expect(dto.yubikey).toEqual({ clientId: "80412", secretKey: "pas6lyijz2AIhX3D9eLIYAxv63lt@" });
       expect(dto).not.toHaveProperty("webauthn");

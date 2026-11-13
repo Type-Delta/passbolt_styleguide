@@ -206,36 +206,26 @@ class FieldClassificationService {
   /**
    * Returns the role found in the label and aria text.
    * The placeholder is only evaluated for EMAIL.
-   * Returns null when the label describes a password together with an email or identifier.
    * @param {FieldScraping} field The field.
    * @param {{strongText: string}} signals The signals.
    * @returns {{role: string, tier: number}|null} A label decision, or null.
    */
   static byExplicitLabel(field, { strongText }) {
-    const isEmail =
+    if (
       KeywordMatchingService.matchesAny(strongText, Keywords.EMAIL) ||
-      EMAIL_PLACEHOLDER.test(field.inputDescription?.placeholder || "");
-
-    const isPassword =
-      KeywordMatchingService.matchesAny(strongText, Keywords.PASSWORD) &&
-      !KeywordMatchingService.matchesAny(strongText, Keywords.PASSWORD_EXCLUDE);
-
-    const isIdentifier =
-      KeywordMatchingService.matchesAny(strongText, Keywords.IDENTIFIER) &&
-      !KeywordMatchingService.matchesAny(strongText, Keywords.ACCOUNT_NUMBER);
-
-    if (isEmail && !isPassword) {
+      EMAIL_PLACEHOLDER.test(field.inputDescription?.placeholder || "")
+    ) {
       return { role: FieldRole.EMAIL, tier: Tier.EXPLICIT_LABEL };
     }
-
-    if (isPassword && !isEmail && !isIdentifier) {
+    if (
+      KeywordMatchingService.matchesAny(strongText, Keywords.PASSWORD) &&
+      !KeywordMatchingService.matchesAny(strongText, Keywords.PASSWORD_EXCLUDE)
+    ) {
       return { role: FieldRole.PASSWORD, tier: Tier.EXPLICIT_LABEL };
     }
-
-    if (isIdentifier && !isPassword) {
+    if (KeywordMatchingService.matchesAny(strongText, Keywords.IDENTIFIER)) {
       return { role: FieldRole.USERNAME, tier: Tier.EXPLICIT_LABEL };
     }
-
     return null;
   }
 
@@ -261,8 +251,7 @@ class FieldClassificationService {
     }
     if (
       KeywordMatchingService.matchesAny(weakText, Keywords.IDENTIFIER) &&
-      !KeywordMatchingService.matchesAny(weakText, Keywords.IDENTIFIER_EXCLUDE) &&
-      !KeywordMatchingService.matchesAny(weakText, Keywords.ACCOUNT_NUMBER)
+      !KeywordMatchingService.matchesAny(weakText, Keywords.IDENTIFIER_EXCLUDE)
     ) {
       return { role: FieldRole.USERNAME, tier: Tier.ATTRIBUTE_KEYWORD };
     }

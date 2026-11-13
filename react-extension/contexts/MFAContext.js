@@ -29,7 +29,6 @@ export const MfaSettingsWorkflowStates = {
   VIEWCONFIGURATION: "View a totp configuration",
   SETUPYUBIKEY: "Setup Yubikey",
   SETUPDUO: "Setup Duo",
-  SETUPDUOERROR: "Setup Duo error",
   PASSKEYS: "Passkeys",
 };
 
@@ -38,11 +37,6 @@ export const Providers = {
   YUBIKEY: "yubikey",
   DUO: "duo",
   WEBAUTHN: "webauthn",
-};
-
-export const DuoSetupErrors = {
-  SUBSCRIBER_MISMATCH: "duoSubscriberMismatch",
-  SETUP_FAILED: "duoSetupFailed",
 };
 
 /**
@@ -175,7 +169,7 @@ export class MfaContextProvider extends React.Component {
 
   /**
    * Find the mfa settings of the current user
-   * @returns {Promise<{mfaUserSettings: Object<string, boolean>, mfaOrganisationSettings: Object<string, boolean>}>}
+   * @return {Promise<void>}
    */
   async findMfaSettings() {
     this.setProcessing(true);

@@ -16,7 +16,7 @@ import PropTypes from "prop-types";
 import { Link, withRouter } from "react-router-dom";
 import { Trans, withTranslation } from "react-i18next";
 import { withAppContext } from "../../../shared/context/AppContext/AppContext";
-import { withActiveSessionSessionStorage } from "../../../shared/context/ActiveSession/ActiveSessionSessionStorageContext";
+import { withActiveSessionLocalStorage } from "../../../shared/context/ActiveSession/ActiveSessionLocalStorageContext";
 import UserActiveSessionEntity from "../../../shared/models/entity/session/userActiveSessionEntity";
 import WifiOffSVG from "../../../img/svg/wifi_off.svg";
 import WifiOnSVG from "../../../img/svg/wifi_on.svg";
@@ -111,6 +111,6 @@ QuickAccessOfflineFooter.propTypes = {
   t: PropTypes.func, // The translation function
 };
 
-export default withActiveSessionSessionStorage(
+export default withActiveSessionLocalStorage(
   withAppContext(withRouter(withTranslation("common")(QuickAccessOfflineFooter))),
 );

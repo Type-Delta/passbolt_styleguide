@@ -41,7 +41,6 @@ class MfaModel {
     this.duoHostname = "duo" in mfaDTO ? mfaDTO.duo.hostName : ""; // duo hostname
     this.duoClientId = "duo" in mfaDTO ? mfaDTO.duo.integrationKey : ""; // duo client id
     this.duoClientSecret = "duo" in mfaDTO ? mfaDTO.duo.secretKey : ""; // duo client key
-    this.duoVerifySubscriber = mfaDTO.duo?.verifySubscriber === true; // duo verify subscriber policy
   }
 }
 

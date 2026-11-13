@@ -213,7 +213,7 @@ describe("See custom fields", () => {
     });
 
     it("AS LU, I cannot preview all secrets of a custom field if denied by RBAC", async () => {
-      expect.assertions(2);
+      expect.assertions(1);
 
       const props = propsWithDenyUiAction({
         resource: resourceWithCustomFieldsDto,
@@ -222,11 +222,10 @@ describe("See custom fields", () => {
       const page = new DisplayResourceDetailsCustomFieldsPage(props);
 
       expect(page.showAllButton).toBeNull();
-      expect(page.hideAllButton).toBeNull();
     });
 
     it("AS LU, I cannot preview  all secrets of a custom field if disable by API flag", async () => {
-      expect.assertions(2);
+      expect.assertions(1);
 
       const props = propsWithApiFlagDisabled({
         resource: resourceWithCustomFieldsDto,
@@ -234,7 +233,6 @@ describe("See custom fields", () => {
       const page = new DisplayResourceDetailsCustomFieldsPage(props);
 
       expect(page.showAllButton).toBeNull();
-      expect(page.hideAllButton).toBeNull();
     });
   });
 

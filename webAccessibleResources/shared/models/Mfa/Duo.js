@@ -26,7 +26,6 @@ class Duo {
     this.apiHostName = duo.duoHostname;
     this.clientId = duo.duoClientId;
     this.clientSecret = duo.duoClientSecret;
-    this.verifySubscriber = Boolean(duo.duoVerifySubscriber);
   }
 }
 

@@ -129,20 +129,6 @@ export default class DisplayMfaAdministrationPage {
   }
 
   /**
-   * Returns the duo verify subscriber input element
-   */
-  get duoVerifySubscriber() {
-    return this._page.container.querySelector("#duo-verify-subscriber");
-  }
-
-  /**
-   * Returns the duo verify subscriber warning element
-   */
-  get duoVerifySubscriberWarning() {
-    return this._page.container.querySelector("#duo-verify-subscriber-warning-banner");
-  }
-
-  /**
    * Returns the eye button for duoClientSecret
    */
   get duoClientSecretButton() {
@@ -245,11 +231,6 @@ export default class DisplayMfaAdministrationPage {
   /** Click on the duo element */
   async checkDuo() {
     await this.click(this.duo);
-  }
-
-  /** Click on the duo verify subscriber element */
-  async checkDuoVerifySubscriber() {
-    await this.click(this.duoVerifySubscriber);
   }
 
   /** Click on the passkeys element */

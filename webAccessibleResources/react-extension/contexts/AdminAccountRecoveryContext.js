@@ -15,7 +15,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { withAppContext } from "../../shared/context/AppContext/AppContext";
-import { AccountRecoveryUserContextProvider, withAccountRecovery } from "./AccountRecoveryUserContext";
+import { withAccountRecovery } from "./AccountRecoveryUserContext";
 
 export const AdminAccountRecoveryContext = React.createContext({
   currentPolicy: null, // The current policy
@@ -157,19 +157,7 @@ export class AdminAccountRecoveryContextProvider extends React.Component {
     );
     const policyChanges = {};
     this.setState({ currentPolicy, policyChanges });
-    await this.props.accountRecoveryContext.reloadAccountRecoveryPolicy();
-    await this.refreshUserAccountRecoveryStatus();
-  }
-
-  /**
-   * Refresh the logged-in user and its account recovery status, as the policy change may have updated it (i.e. disabled policy).
-   */
-  async refreshUserAccountRecoveryStatus() {
-    const loggedInUser = await this.props.context.port.request("passbolt.users.find-logged-in-user", true);
-    this.props.context.setContext({ loggedInUser });
-    const status =
-      loggedInUser.account_recovery_user_setting?.status || AccountRecoveryUserContextProvider.STATUS_PENDING;
-    this.props.accountRecoveryContext.setUserAccountRecoveryStatus(status);
+    this.props.accountRecoveryContext.reloadAccountRecoveryPolicy();
   }
 
   /**

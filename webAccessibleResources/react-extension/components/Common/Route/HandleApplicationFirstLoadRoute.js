@@ -14,7 +14,6 @@
 import React, { Component } from "react";
 import { Redirect, withRouter } from "react-router-dom";
 import PropTypes from "prop-types";
-import SearchParamsValidator from "../../../../shared/lib/Validator/SearchParamsValidator";
 
 // The default path to redirect the users to.
 const DEFAULT_PATH_NAME = "/app/passwords";
@@ -63,46 +62,11 @@ class HandleApplicationFirstLoadRoute extends Component {
   }
 
   /**
-   * The parameters to pass to the redirected URL.
-   * @returns {string}
-   */
-  get urlParametersToRedirectTo() {
-    const pathname = this.getPathnameFromUrlParameter();
-    if (!pathname) {
-      return DEFAULT_PATH_NAME;
-    }
-    return pathname;
-  }
-
-  /**
-   * The search parameters to pass to the redirected URL.
-   * We currently only allow the error parameter to be passed.
-   * @returns {string} The search parameters to pass to the redirected URL.
-   */
-  get searchParameters() {
-    const searchParameters = new URLSearchParams();
-
-    const errorCode = SearchParamsValidator.getErrorCode(this.props.location?.search);
-    if (errorCode) {
-      searchParameters.append("error", errorCode);
-    }
-
-    return searchParameters.toString();
-  }
-
-  /**
    * Render the component
    * @return {JSX}
    */
   render() {
-    return (
-      <Redirect
-        to={{
-          pathname: this.pathnameToRedirectTo,
-          search: this.searchParameters,
-        }}
-      />
-    );
+    return <Redirect to={this.pathnameToRedirectTo} />;
   }
 }
 
