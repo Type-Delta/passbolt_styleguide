@@ -46,7 +46,11 @@ function renderList(props = {}) {
 describe("ManageAccountsList", () => {
   it("locks an unlocked account without confirmation", async () => {
     const props = renderList();
-    fireEvent.click(screen.getByRole("button", { name: "Lock alex.moreau@work.example" }));
+    const lock = screen.getByRole("button", { name: "Lock alex.moreau@work.example" });
+    expect(lock).toHaveAccessibleDescription(
+      "End this account's remembered unlock. Unlock it again to use it; the account and private key stay saved.",
+    );
+    fireEvent.click(lock);
     await waitFor(() => expect(props.onLock).toHaveBeenCalledWith(ACCOUNT_WORK_ID));
   });
 

@@ -103,6 +103,9 @@ class ManageAccountsList extends Component {
             type="button"
             className={`button button-transparent ${isProcessing ? "processing" : ""}`}
             disabled={isBusy}
+            title={this.props.t(
+              "End this account's remembered unlock. Unlock it again to use it; the account and private key stay saved.",
+            )}
             aria-label={this.props.t("Lock {{username}}", {
               username: account.username,
               interpolation: { escapeValue: false },

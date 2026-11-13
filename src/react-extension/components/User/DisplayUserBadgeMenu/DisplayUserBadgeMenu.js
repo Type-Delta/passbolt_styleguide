@@ -334,7 +334,7 @@ class DisplayUserBadgeMenu extends Component {
               </div>
               <div className="manage-account">
                 <button className="button primary" onClick={this.handleProfileClick}>
-                  <ProfileIcon /> <Trans>Manage account</Trans>
+                  <ProfileIcon /> <Trans>Account Settings</Trans>
                   {this.attentionRequired && <AttentionSVG className="attention-required" />}
                 </button>
               </div>
